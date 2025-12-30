@@ -1,87 +1,94 @@
 "use client";
 import { useEffect, useState } from "react";
-// Importamos el hook específico para leer la URL en el cliente
-import { useParams } from "next/navigation"; 
+import { useParams } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import InteractiveQuote from "@/components/InteractiveQuote";
+import { useAuth } from "@/context/AuthContext";
 
-interface ProposalData {
-  freelancerName: string;
-  clientName: string;
-  basePrice: number;
-  whatsapp: string;
-  services: { id: string; title: string; price: number; desc: string }[];
-}
-
-// NOTA: Quitamos { params } de los argumentos de la función para evitar el error de Promesa
-export default function ProposalViewer() {
-  // 1. Usamos el hook useParams. Next.js se encarga de darnos el ID correctamente.
-  const params = useParams();
-  
-  // Aseguramos que el id sea un string (a veces puede venir como array)
-  const id = Array.isArray(params?.id) ? params.id[0] : params?.id;
-
-  const [data, setData] = useState<ProposalData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState("");
+export default function ViewProposal() {
+  const { id } = useParams();
+  const { user } = useAuth();
+  const [proposal, setProposal] = useState<any>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   useEffect(() => {
-    // Si el ID aún no está listo o es undefined, no hacemos nada para evitar el error de Firebase
-    if (!id) return;
-
-    const fetchData = async () => {
-      console.log("🔍 Buscando en Firebase ID:", id);
-
-      try {
-        // Ahora id seguro es un string, Firebase no fallará con "indexOf"
-        const docRef = doc(db, "proposals", id);
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-          console.log("✅ Datos encontrados:", docSnap.data());
-          setData(docSnap.data() as ProposalData);
-        } else {
-          console.error("❌ Documento no encontrado en la DB");
-          setErrorMsg("El presupuesto no existe o fue eliminado.");
-        }
-      } catch (error) {
-        console.error("🔥 Error crítico de Firebase:", error);
-        setErrorMsg("Error de conexión. Revisa tu internet o la consola.");
-      } finally {
-        setLoading(false);
+    const fetch = async () => {
+      const docSnap = await getDoc(doc(db, "proposals", id as string));
+      if (docSnap.exists()) {
+        setProposal(docSnap.data());
+        setSelectedIds(docSnap.data().services.map((s: any) => s.id));
       }
     };
-
-    fetchData();
+    fetch();
   }, [id]);
 
-  if (loading) return (
-    <div className="min-h-screen bg-dark-900 flex flex-col items-center justify-center text-white space-y-4">
-      <div className="w-12 h-12 border-4 border-primary-DEFAULT border-t-transparent rounded-full animate-spin"></div>
-      <p className="animate-pulse">Cargando propuesta...</p>
-    </div>
-  );
-  
-  if (!data) return (
-    <div className="min-h-screen bg-dark-900 flex flex-col items-center justify-center text-red-400 p-4 text-center">
-      <h2 className="text-3xl font-bold mb-2">Error 404</h2>
-      <p className="text-xl text-white">{errorMsg || "Presupuesto no encontrado."}</p>
-      <p className="text-gray-600 text-sm mt-8 font-mono bg-black/30 p-2 rounded">ID Intentado: {id}</p>
-    </div>
-  );
+  if (!proposal) return <div className="text-white text-center mt-20">Cargando...</div>;
 
-  const handleConfirm = (total: number, items: string[]) => {
-    const message = `Hola *${data.freelancerName}*! Soy ${data.clientName}.%0A%0AAcepto el presupuesto id:${id}.%0AItems: ${items.join(", ")}%0ATotal: *$${total}*.`;
-    window.open(`https://wa.me/${data.whatsapp}?text=${message}`, "_blank");
+  const isOwner = user?.uid === proposal.freelancerId;
+  const currentTotal = proposal.services
+    .filter((s: any) => selectedIds.includes(s.id))
+    .reduce((acc: number, s: any) => acc + s.price, 0);
+
+  const toggleItem = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const handleAccept = () => {
+    const selected = proposal.services.filter((s: any) => selectedIds.includes(s.id)).map((s: any) => s.title).join(", ");
+    const msg = `Hola ${proposal.freelancerName}, acepto realizar: ${selected}. Total: $${currentTotal}`;
+    window.open(`https://wa.me/${proposal.whatsapp}?text=${encodeURIComponent(msg)}`, "_blank");
   };
 
   return (
-    <InteractiveQuote 
-      clientName={data.clientName}
-      basePrice={data.basePrice}
-      customServices={data.services}
-      onConfirm={handleConfirm}
-    />
+    <main className="min-h-screen bg-dark-900 p-4 flex justify-center items-start">
+      <div className="max-w-xl w-full bg-dark-800 rounded-[2.5rem] border border-white/10 overflow-hidden">
+        
+        {/* Cabecera */}
+        <div className="p-8 bg-white/5 border-b border-white/10">
+          <h1 className="text-3xl font-black text-white">{proposal.clientName}</h1>
+          <p className="text-gray-400">Presupuesto de <span className="text-white font-bold">{proposal.freelancerName}</span></p>
+        </div>
+
+        {/* BOTÓN PORTAFOLIO DINÁMICO */}
+        {proposal.portfolioUrl && (
+          <div className="p-4 bg-primary-DEFAULT/10 border-b border-primary-DEFAULT/20 flex items-center justify-between">
+            <span className="text-xs text-white font-bold">📸 Mira mis trabajos anteriores:</span>
+            <a href={proposal.portfolioUrl} target="_blank" className="bg-primary-DEFAULT text-white text-[10px] font-black px-4 py-2 rounded-full shadow-lg">VER PORTAFOLIO</a>
+          </div>
+        )}
+
+        {/* LISTADO INTERACTIVO */}
+        <div className="p-6 space-y-3">
+          <p className="text-[10px] text-gray-500 uppercase font-bold italic">Seleccioná los ítems para actualizar el total:</p>
+          {proposal.services.map((s: any) => (
+            <div 
+              key={s.id} 
+              onClick={() => toggleItem(s.id)}
+              className={`p-4 rounded-2xl border transition-all cursor-pointer flex justify-between items-center ${selectedIds.includes(s.id) ? 'bg-white/5 border-primary-DEFAULT opacity-100' : 'border-white/5 opacity-30 grayscale'}`}
+            >
+              <div>
+                <h3 className="text-white font-bold text-sm">{s.title}</h3>
+                <p className="text-gray-500 text-[10px]">{s.desc}</p>
+              </div>
+              <p className="text-white font-mono font-bold">${s.price.toLocaleString()}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer con Total y WhatsApp */}
+        <div className="p-8 bg-black/30 border-t border-white/10">
+          <div className="flex justify-between items-end mb-6">
+            <span className="text-gray-400 font-bold text-sm uppercase">Total Seleccionado</span>
+            <span className="text-4xl font-black text-white">${currentTotal.toLocaleString()}</span>
+          </div>
+
+          {isOwner ? (
+            <button onClick={() => navigator.clipboard.writeText(window.location.href)} className="w-full py-4 bg-white text-black font-black rounded-2xl">COPIAR LINK DEL PRESUPUESTO</button>
+          ) : (
+            <button onClick={handleAccept} className="w-full py-4 bg-green-500 text-white font-black rounded-2xl text-lg shadow-xl shadow-green-500/20">ACEPTAR POR WHATSAPP ✅</button>
+          )}
+        </div>
+      </div>
+    </main>
   );
 }

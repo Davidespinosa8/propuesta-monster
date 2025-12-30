@@ -58,3 +58,23 @@ body {
     linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
 }
+
+/* src/app/globals.css */
+
+/* src/app/globals.css */
+
+@layer utilities {
+  /* Ocultar barra en Chrome, Safari, Opera y Edge Chromium */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none !important;
+    width: 0px !important;
+    height: 0px !important;
+    background: transparent !important; /* Opcional: solo por seguridad */
+  }
+
+  /* Ocultar barra en Firefox e IE */
+  .no-scrollbar {
+    -ms-overflow-style: none !important;  /* IE and Edge */
+    scrollbar-width: none !important;  /* Firefox */
+  }
+}
