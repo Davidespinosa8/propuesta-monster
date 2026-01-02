@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { collection, addDoc, doc, getDoc } from "firebase/firestore"; 
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
-import Link from "next/link"; // <--- AGREGADO
+import Link from "next/link";
 
 // CATEGORÍAS DISPONIBLES
 const CATEGORIES = [
@@ -37,9 +37,10 @@ export default function CreateQuote() {
   // ESTADOS
   const [activeCategory, setActiveCategory] = useState<string>("digital");
   const [initializing, setInitializing] = useState(true);
-  
-  // --- AGREGADO: ESTADO MENU ---
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  
+  // ESTADO PARA SABER DÓNDE REDIRECCIONAR
+  const [redirectTarget, setRedirectTarget] = useState<'view' | 'dashboard'>('view');
 
   // DATOS FORMULARIO
   const [clientName, setClientName] = useState("");
@@ -169,7 +170,14 @@ export default function CreateQuote() {
       };
 
       const docRef = await addDoc(collection(db, "proposals"), proposalData);
-      router.push(`/p/${docRef.id}`);
+      
+      // REDIRECCIÓN INTELIGENTE SEGÚN EL BOTÓN APRETADO
+      if (redirectTarget === 'view') {
+          router.push(`/p/${docRef.id}`);
+      } else {
+          router.push('/dashboard');
+      }
+
     } catch (error) {
       console.error("Error guardando:", error);
     }
@@ -180,7 +188,7 @@ export default function CreateQuote() {
   return (
     <main className="min-h-screen bg-dark-900 p-4 md:p-8 font-sans relative overflow-hidden">
       
-      {/* --- AGREGADO: MENÚ LATERAL --- */}
+      {/* MENÚ LATERAL */}
       <div className={`fixed top-0 right-0 h-full bg-dark-800 border-l border-white/10 transition-transform duration-500 z-50 ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'} w-72 shadow-2xl`}>
         <button 
           onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -232,8 +240,13 @@ export default function CreateQuote() {
               <div className="bg-dark-800/50 p-6 rounded-2xl border border-dark-700 space-y-6 flex-1">
                 <div>
                   <label className="text-gray-400 text-xs font-bold uppercase">Honorarios Base</label>
-                  <input type="number" value={digitalBasePrice} onChange={e => setDigitalBasePrice(Number(e.target.value))}
-                    className="w-full bg-dark-900 border border-dark-600 rounded-xl p-4 text-white text-2xl font-mono mt-2 outline-none" />
+                  <input 
+                    type="number" 
+                    placeholder="0"
+                    value={digitalBasePrice === 0 ? "" : digitalBasePrice} 
+                    onChange={e => setDigitalBasePrice(Number(e.target.value))}
+                    className="w-full bg-dark-900 border border-dark-600 rounded-xl p-4 text-white text-2xl font-mono mt-2 outline-none focus:border-primary-DEFAULT transition-colors placeholder:text-dark-700" 
+                  />
                 </div>
                 <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                   <button onClick={addDigitalService} className="w-full mb-4 py-2 bg-primary-DEFAULT/20 text-primary-DEFAULT border border-primary-DEFAULT/30 rounded-lg text-xs font-bold">+ AGREGAR ITEM MANUAL</button>
@@ -290,13 +303,31 @@ export default function CreateQuote() {
               {selectedItems.map(item => (
                 <div key={item.id} className="bg-dark-900 p-3 rounded-lg border border-dark-700 flex justify-between items-center">
                   <div className="flex-1">
-                    <p className="text-xs text-white font-bold">{item.task}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                        <input type="number" value={item.qty} onChange={(e) => updateQty(item.id, Number(e.target.value))} className="w-10 bg-dark-800 text-[10px] text-center text-white rounded" />
-                        <span className="text-[10px] text-gray-500">x ${item.customPrice}</span>
+                    <p className="text-xs text-white font-bold mb-1">{item.task}</p>
+                    <div className="flex items-center gap-2">
+                        <input 
+                          type="number" 
+                          value={item.qty} 
+                          onChange={(e) => updateQty(item.id, Number(e.target.value))} 
+                          className="w-10 bg-dark-800 text-[10px] text-center text-white rounded border border-dark-600 p-1" 
+                          title="Cantidad"
+                        />
+                        <span className="text-[10px] text-gray-500 font-bold">x</span>
+                        <div className="flex items-center bg-dark-800 rounded border border-dark-600 px-1">
+                          <span className="text-[10px] text-gray-500 mr-1">$</span>
+                          <input 
+                            type="number"
+                            value={item.customPrice}
+                            onChange={(e) => updateCustomPrice(item.id, Number(e.target.value))}
+                            className="w-16 bg-transparent text-[10px] text-white outline-none font-mono"
+                          />
+                        </div>
+                        <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider">
+                           /{item.unit}
+                        </span>
                     </div>
                   </div>
-                  <button type="button" onClick={() => updateQty(item.id, 0)} className="text-red-500 text-xs ml-2">×</button>
+                  <button type="button" onClick={() => updateQty(item.id, 0)} className="text-red-500 text-xs ml-2 hover:bg-red-500/10 p-1 rounded">✕</button>
                 </div>
               ))}
             </div>
@@ -308,9 +339,25 @@ export default function CreateQuote() {
               </div>
             </div>
 
-            <button type="submit" className="w-full py-4 bg-white text-dark-900 font-black text-lg rounded-xl hover:scale-[1.02] transition-transform">
-              GENERAR PRESUPUESTO 🚀
-            </button>
+            {/* --- NUEVA BOTONERA DOBLE --- */}
+            <div className="grid grid-cols-2 gap-3">
+              <button 
+                type="submit" 
+                onClick={() => setRedirectTarget('dashboard')}
+                className="w-full py-4 bg-transparent border border-white/20 text-white font-bold rounded-xl text-xs uppercase hover:bg-white/5 transition-all"
+              >
+                💾 Guardar
+              </button>
+
+              <button 
+                type="submit" 
+                onClick={() => setRedirectTarget('view')}
+                className="w-full py-4 bg-white text-dark-900 font-black rounded-xl text-xs uppercase hover:scale-[1.02] transition-transform"
+              >
+                Generar 🚀
+              </button>
+            </div>
+
           </form>
         </div>
       </div>

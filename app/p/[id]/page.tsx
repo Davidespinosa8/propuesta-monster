@@ -1,94 +1,79 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { doc, getDoc, updateDoc, Timestamp, serverTimestamp } from "firebase/firestore";
 import { useAuth } from "@/context/AuthContext";
+import ProposalView from "@/components/ProposalView";
+import Link from "next/link";
 
-export default function ViewProposal() {
+interface ProposalData {
+  id: string;
+  clientName: string;
+  jobTitle?: string;
+  items: Array<{ description: string; price: number; type: string }>;
+  total: number;
+  status: string;
+  createdAt: Timestamp;
+  freelancerId: string;
+  viewedAt?: Timestamp;
+}
+
+export default function ProposalPage() {
   const { id } = useParams();
   const { user } = useAuth();
-  const [proposal, setProposal] = useState<any>(null);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [proposal, setProposal] = useState<ProposalData | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetch = async () => {
-      const docSnap = await getDoc(doc(db, "proposals", id as string));
-      if (docSnap.exists()) {
-        setProposal(docSnap.data());
-        setSelectedIds(docSnap.data().services.map((s: any) => s.id));
+    const fetchAndTrackProposal = async () => {
+      if (!id || typeof id !== 'string') return;
+      try {
+        const docRef = doc(db, "proposals", id);
+        const snap = await getDoc(docRef);
+        
+        if (snap.exists()) {
+          // CORRECCIÓN: Le decimos a TS que excluya 'id' de los datos crudos para no duplicarlo al unirlo
+          const rawData = snap.data() as Omit<ProposalData, 'id'>;
+          
+          const fullData: ProposalData = { 
+            id: snap.id, 
+            ...rawData 
+          };
+          
+          setProposal(fullData);
+
+          if (user?.uid !== fullData.freelancerId && !fullData.viewedAt) {
+             await updateDoc(docRef, {
+               viewedAt: serverTimestamp()
+             });
+          }
+        }
+      } catch (error) {
+        console.error("Error:", error);
+      } finally {
+        setLoading(false);
       }
     };
-    fetch();
-  }, [id]);
+    fetchAndTrackProposal();
+  }, [id, user]);
 
-  if (!proposal) return <div className="text-white text-center mt-20">Cargando...</div>;
-
-  const isOwner = user?.uid === proposal.freelancerId;
-  const currentTotal = proposal.services
-    .filter((s: any) => selectedIds.includes(s.id))
-    .reduce((acc: number, s: any) => acc + s.price, 0);
-
-  const toggleItem = (id: string) => {
-    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
-  };
-
-  const handleAccept = () => {
-    const selected = proposal.services.filter((s: any) => selectedIds.includes(s.id)).map((s: any) => s.title).join(", ");
-    const msg = `Hola ${proposal.freelancerName}, acepto realizar: ${selected}. Total: $${currentTotal}`;
-    window.open(`https://wa.me/${proposal.whatsapp}?text=${encodeURIComponent(msg)}`, "_blank");
-  };
+  if (loading) return <div className="min-h-screen bg-dark-900 flex items-center justify-center text-white animate-pulse text-xs font-bold uppercase">Cargando...</div>;
+  if (!proposal) return <div className="min-h-screen bg-dark-900 flex items-center justify-center text-gray-500 font-bold uppercase">No encontrado</div>;
 
   return (
-    <main className="min-h-screen bg-dark-900 p-4 flex justify-center items-start">
-      <div className="max-w-xl w-full bg-dark-800 rounded-[2.5rem] border border-white/10 overflow-hidden">
-        
-        {/* Cabecera */}
-        <div className="p-8 bg-white/5 border-b border-white/10">
-          <h1 className="text-3xl font-black text-white">{proposal.clientName}</h1>
-          <p className="text-gray-400">Presupuesto de <span className="text-white font-bold">{proposal.freelancerName}</span></p>
-        </div>
-
-        {/* BOTÓN PORTAFOLIO DINÁMICO */}
-        {proposal.portfolioUrl && (
-          <div className="p-4 bg-primary-DEFAULT/10 border-b border-primary-DEFAULT/20 flex items-center justify-between">
-            <span className="text-xs text-white font-bold">📸 Mira mis trabajos anteriores:</span>
-            <a href={proposal.portfolioUrl} target="_blank" className="bg-primary-DEFAULT text-white text-[10px] font-black px-4 py-2 rounded-full shadow-lg">VER PORTAFOLIO</a>
-          </div>
-        )}
-
-        {/* LISTADO INTERACTIVO */}
-        <div className="p-6 space-y-3">
-          <p className="text-[10px] text-gray-500 uppercase font-bold italic">Seleccioná los ítems para actualizar el total:</p>
-          {proposal.services.map((s: any) => (
-            <div 
-              key={s.id} 
-              onClick={() => toggleItem(s.id)}
-              className={`p-4 rounded-2xl border transition-all cursor-pointer flex justify-between items-center ${selectedIds.includes(s.id) ? 'bg-white/5 border-primary-DEFAULT opacity-100' : 'border-white/5 opacity-30 grayscale'}`}
-            >
-              <div>
-                <h3 className="text-white font-bold text-sm">{s.title}</h3>
-                <p className="text-gray-500 text-[10px]">{s.desc}</p>
-              </div>
-              <p className="text-white font-mono font-bold">${s.price.toLocaleString()}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Footer con Total y WhatsApp */}
-        <div className="p-8 bg-black/30 border-t border-white/10">
-          <div className="flex justify-between items-end mb-6">
-            <span className="text-gray-400 font-bold text-sm uppercase">Total Seleccionado</span>
-            <span className="text-4xl font-black text-white">${currentTotal.toLocaleString()}</span>
-          </div>
-
-          {isOwner ? (
-            <button onClick={() => navigator.clipboard.writeText(window.location.href)} className="w-full py-4 bg-white text-black font-black rounded-2xl">COPIAR LINK DEL PRESUPUESTO</button>
-          ) : (
-            <button onClick={handleAccept} className="w-full py-4 bg-green-500 text-white font-black rounded-2xl text-lg shadow-xl shadow-green-500/20">ACEPTAR POR WHATSAPP ✅</button>
-          )}
-        </div>
+    <div className="min-h-screen bg-dark-900 text-white p-4 md:p-8 flex justify-center relative overflow-hidden">
+      <div className="absolute inset-0 z-0 pointer-events-none opacity-20">
+        <div className="absolute inset-0 bg-grid-white mask-[radial-gradient(ellipse_at_center,transparent_20%,black)]"></div>
       </div>
-    </main>
+      <div className="w-full max-w-4xl animate-in fade-in zoom-in-95 duration-500 relative z-10">
+        <div className="mb-6">
+            <Link href="/dashboard" className="inline-flex items-center gap-2 text-xs font-black text-gray-500 hover:text-white uppercase tracking-wider transition-colors group">
+                <span className="group-hover:-translate-x-1 transition-transform">←</span> Volver al Dashboard
+            </Link>
+        </div>
+        <ProposalView proposal={proposal} />
+      </div>
+    </div>
   );
 }
