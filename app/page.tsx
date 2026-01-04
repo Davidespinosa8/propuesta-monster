@@ -1,23 +1,23 @@
 "use client";
-import { useState } from "react"; // 1. Importamos useState
+import { useState } from "react"; 
 import Link from "next/link";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 
 export default function Home() {
   const { user, loading } = useAuth();
-  const [isMenuOpen, setIsMenuOpen] = useState(false); // 2. Estado del menú
+  const [isMenuOpen, setIsMenuOpen] = useState(false); 
 
   return (
     <main className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden bg-dark-900 text-center px-4">
       
-      {/* FONDO GRID + LUCES (Igual que antes) */}
+      {/* FONDO GRID + LUCES */}
       <div className="absolute inset-0 z-0 pointer-events-none">
         <div className="absolute inset-0 bg-grid-white mask-[radial-gradient(ellipse_at_center,transparent_20%,black)]"></div>
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-150 h-150 bg-primary-DEFAULT opacity-20 blur-[120px]"></div>
       </div>
 
-      {/* --- NUEVO MENÚ LATERAL (Igual al Dashboard) --- */}
+      {/* --- MENÚ LATERAL --- */}
       {user && (
         <div className={`fixed top-0 right-0 h-full bg-dark-800 border-l border-white/10 transition-transform duration-500 z-50 ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'} w-72 shadow-2xl`}>
           {/* La Pestaña/Flecha */}
@@ -50,7 +50,7 @@ export default function Home() {
               </Link>
             </div>
 
-            {/* Botón de Cerrar Sesión (Movido aquí dentro) */}
+            {/* Botón de Cerrar Sesión */}
             <div className="pt-8 border-t border-white/5">
               <button 
                 onClick={() => auth.signOut()}

@@ -38,8 +38,6 @@ export default function CreateQuote() {
   const [activeCategory, setActiveCategory] = useState<string>("digital");
   const [initializing, setInitializing] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  
-  // ESTADO PARA SABER DÓNDE REDIRECCIONAR
   const [redirectTarget, setRedirectTarget] = useState<'view' | 'dashboard'>('view');
 
   // DATOS FORMULARIO
@@ -135,6 +133,12 @@ export default function CreateQuote() {
     return totalOficios + totalDigital;
   };
 
+  // HELPER PARA SABER CUANTOS TENGO DE UN ITEM
+  const getItemQty = (id: string) => {
+    const found = selectedItems.find(i => i.id === id);
+    return found ? found.qty : 0;
+  };
+
   // --- GUARDAR ---
   const saveToFirebase = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,7 +175,6 @@ export default function CreateQuote() {
 
       const docRef = await addDoc(collection(db, "proposals"), proposalData);
       
-      // REDIRECCIÓN INTELIGENTE SEGÚN EL BOTÓN APRETADO
       if (redirectTarget === 'view') {
           router.push(`/p/${docRef.id}`);
       } else {
@@ -269,15 +272,41 @@ export default function CreateQuote() {
                   className="w-full bg-dark-900 border border-dark-600 rounded-xl p-4 text-white mb-4 outline-none focus:border-primary-DEFAULT"
                 />
                 <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-                  {refItems.filter(i => i.task.toLowerCase().includes(searchTerm.toLowerCase())).map((item) => (
-                    <button key={item.id} onClick={() => addToBudget(item)} className="w-full text-left p-4 rounded-xl bg-dark-900/50 hover:bg-dark-700 border border-transparent hover:border-gray-600 flex justify-between items-center group">
-                      <div>
-                        <p className="font-bold text-gray-200">{item.task}</p>
-                        <p className="text-xs text-gray-500">Unidad: {item.unit}</p>
-                      </div>
-                      <p className="font-mono text-accent-DEFAULT font-bold">${item.price.toLocaleString()}</p>
-                    </button>
-                  ))}
+                  {refItems.filter(i => i.task.toLowerCase().includes(searchTerm.toLowerCase())).map((item) => {
+                    const qty = getItemQty(item.id);
+                    const isSelected = qty > 0;
+
+                    return (
+                      <button 
+                        key={item.id} 
+                        onClick={() => addToBudget(item)} 
+                        className={`w-full text-left p-4 rounded-xl border flex justify-between items-center group transition-all duration-200 active:scale-95
+                          ${isSelected 
+                            ? "bg-primary-DEFAULT/10 border-primary-DEFAULT shadow-[0_0_15px_rgba(var(--primary-rgb),0.1)]" 
+                            : "bg-dark-900/50 border-transparent hover:bg-dark-700 hover:border-gray-600"
+                          }
+                        `}
+                      >
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className={`font-bold transition-colors ${isSelected ? "text-white" : "text-gray-200"}`}>
+                              {item.task}
+                            </p>
+                            {/* BADGE DE CANTIDAD */}
+                            {isSelected && (
+                              <span className="bg-primary-DEFAULT text-dark-900 text-[10px] font-black px-2 py-0.5 rounded-full animate-in zoom-in">
+                                x{qty}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500">Unidad: {item.unit}</p>
+                        </div>
+                        <p className={`font-mono font-bold transition-colors ${isSelected ? "text-primary-DEFAULT" : "text-accent-DEFAULT"}`}>
+                          ${item.price.toLocaleString()}
+                        </p>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -294,7 +323,7 @@ export default function CreateQuote() {
               <input required placeholder="WhatsApp (Ej: 54911...)" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className="w-full bg-dark-900 border border-dark-600 rounded-xl p-3 text-white outline-none" />
               
               <div className="pt-2">
-                <label className="text-[10px] text-accent-DEFAULT font-bold uppercase ml-1">Link de tu Portafolio (Opcional)</label>
+                <label className="text-[12px] text-accent-DEFAULT font-bold uppercase ml-1">Link de tu Portafolio (Opcional)</label>
                 <input placeholder="Google Drive, Instagram, etc." value={portfolioUrl} onChange={e => setPortfolioUrl(e.target.value)} className="w-full bg-dark-900 border border-dark-600 rounded-xl p-3 text-white outline-none mt-1" />
               </div>
             </div>
@@ -303,29 +332,33 @@ export default function CreateQuote() {
               {selectedItems.map(item => (
                 <div key={item.id} className="bg-dark-900 p-3 rounded-lg border border-dark-700 flex justify-between items-center">
                   <div className="flex-1">
-                    <p className="text-xs text-white font-bold mb-1">{item.task}</p>
+                    <p className="text-s text-white font-bold mb-1">{item.task}</p>
+                    
                     <div className="flex items-center gap-2">
                         <input 
                           type="number" 
                           value={item.qty} 
                           onChange={(e) => updateQty(item.id, Number(e.target.value))} 
-                          className="w-10 bg-dark-800 text-[10px] text-center text-white rounded border border-dark-600 p-1" 
+                          className="w-10 bg-dark-800 text-[15px] text-center text-white rounded border border-dark-600 p-1" 
                           title="Cantidad"
                         />
-                        <span className="text-[10px] text-gray-500 font-bold">x</span>
+                        <span className="text-[15px] text-gray-500 font-bold">x</span>
+                        
                         <div className="flex items-center bg-dark-800 rounded border border-dark-600 px-1">
-                          <span className="text-[10px] text-gray-500 mr-1">$</span>
+                          <span className="text-[15px] text-gray-500 mr-1">$</span>
                           <input 
                             type="number"
                             value={item.customPrice}
                             onChange={(e) => updateCustomPrice(item.id, Number(e.target.value))}
-                            className="w-16 bg-transparent text-[10px] text-white outline-none font-mono"
+                            className="w-16 bg-transparent text-[15px] text-white outline-none font-mono"
                           />
                         </div>
-                        <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider">
-                           /{item.unit}
+
+                        <span className="text-[12px] text-gray-500 uppercase font-bold tracking-wider">
+                          /{item.unit}
                         </span>
                     </div>
+
                   </div>
                   <button type="button" onClick={() => updateQty(item.id, 0)} className="text-red-500 text-xs ml-2 hover:bg-red-500/10 p-1 rounded">✕</button>
                 </div>
@@ -339,7 +372,7 @@ export default function CreateQuote() {
               </div>
             </div>
 
-            {/* --- NUEVA BOTONERA DOBLE --- */}
+            {/* BOTONERA DOBLE */}
             <div className="grid grid-cols-2 gap-3">
               <button 
                 type="submit" 

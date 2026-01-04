@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, Timestamp, deleteDoc, doc, orderBy } from "firebase/firestore";
+import { collection, query, where, getDocs, Timestamp, deleteDoc, doc } from "firebase/firestore";
 import Link from "next/link";
 import UserProfile from "@/components/UserProfile";
 
@@ -11,7 +11,7 @@ interface Proposal {
   clientName: string;
   total: number;
   createdAt: Timestamp;
-  viewedAt?: Timestamp; // Para saber si lo vieron
+  viewedAt?: Timestamp; 
   freelancerId: string;
 }
 
@@ -27,18 +27,14 @@ export default function Dashboard() {
     
     const fetchProposals = async () => {
       try {
-        // CORRECCIÓN: Quitamos 'orderBy' para que no pida índice y cargue ya mismo
         const q = query(
           collection(db, "proposals"), 
           where("freelancerId", "==", user.uid)
-          // orderBy("createdAt", "desc") <--- COMENTADO PROVISORIAMENTE
         );
         
         const snap = await getDocs(q);
-        // Ordenamos manualmente en Javascript (truco para evitar el índice de Firebase)
         const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Proposal));
         
-        // Ordenamiento manual por fecha (del más nuevo al más viejo)
         docs.sort((a, b) => {
             const dateA = a.createdAt?.seconds || 0;
             const dateB = b.createdAt?.seconds || 0;
@@ -61,7 +57,6 @@ export default function Dashboard() {
     if (confirm("¿Estás seguro de que querés eliminar este presupuesto? No se puede recuperar.")) {
       try {
         await deleteDoc(doc(db, "proposals", id));
-        // Actualizamos la lista localmente para que desaparezca rápido
         setProposals(prev => prev.filter(p => p.id !== id));
       } catch (error) {
         console.error("Error al eliminar", error);
@@ -104,7 +99,7 @@ export default function Dashboard() {
             
             <div className="grid gap-4">
               {loading ? (
-                 <div className="text-center text-gray-500 animate-pulse uppercase text-xs font-bold">Cargando datos...</div>
+                <div className="text-center text-gray-500 animate-pulse uppercase text-xs font-bold">Cargando datos...</div>
               ) : proposals.length > 0 ? (
                 proposals.map(p => (
                   <div key={p.id} className="group bg-dark-800/50 backdrop-blur-md p-6 rounded-[2rem] border border-white/5 hover:border-primary-DEFAULT transition-all flex flex-col md:flex-row justify-between items-center gap-4">
@@ -127,17 +122,16 @@ export default function Dashboard() {
 
                         {/* Tildes */}
                         <div className="flex -space-x-1">
-                             {/* Primer Tilde (Siempre activo porque ya existe) */}
-                             <svg className={`w-4 h-4 ${p.viewedAt ? 'text-blue-400' : 'text-gray-500'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <svg className={`w-4 h-4 ${p.viewedAt ? 'text-blue-400' : 'text-gray-500'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                                 <polyline points="20 6 9 17 4 12"></polyline>
-                             </svg>
-                             
-                             {/* Segundo Tilde (Solo si viewedAt existe) */}
-                             {p.viewedAt && (
+                            </svg>
+                            
+                             {/* Segundo Tilde */}
+                            {p.viewedAt && (
                                 <svg className="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                                     <polyline points="20 6 9 17 4 12"></polyline>
                                 </svg>
-                             )}
+                            )}
                         </div>
                     </div>
 
