@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation"; // Importante para redirigir
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, Timestamp, deleteDoc, doc } from "firebase/firestore";
@@ -16,12 +17,22 @@ interface Proposal {
 }
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth(); // Usamos authLoading para saber si firebase terminó
+  const router = useRouter();
+  
   const [view, setView] = useState<'dashboard' | 'perfil'>('dashboard');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [proposals, setProposals] = useState<Proposal[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true); // Renombramos para no confundir con authLoading
 
+  // 1. SEGURIDAD: REDIRECCIÓN SI NO HAY USUARIO
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/login");
+    }
+  }, [authLoading, user, router]);
+
+  // 2. CARGA DE DATOS
   useEffect(() => {
     if (!user) return;
     
@@ -45,7 +56,7 @@ export default function Dashboard() {
       } catch (error) {
         console.error("Error cargando propuestas:", error);
       } finally {
-        setLoading(false);
+        setDataLoading(false);
       }
     };
 
@@ -63,6 +74,21 @@ export default function Dashboard() {
       }
     }
   };
+
+  // 3. PANTALLA DE CARGA (Bloqueo visual en incógnito)
+  // Si auth está cargando O no hay usuario, mostramos pantalla negra.
+  if (authLoading || !user) {
+    return (
+      <div className="min-h-screen bg-dark-900 flex items-center justify-center">
+        <div className="animate-pulse flex flex-col items-center gap-4">
+           {/* Spinner simple */}
+           <div className="w-12 h-12 border-4 border-primary-DEFAULT border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- TU DISEÑO ORIGINAL RESTAURADO ---
 
   return (
     <main className="min-h-screen bg-dark-900 text-white p-4 md:p-8 relative overflow-hidden">
@@ -98,7 +124,7 @@ export default function Dashboard() {
             </header>
             
             <div className="grid gap-4">
-              {loading ? (
+              {dataLoading ? (
                 <div className="text-center text-gray-500 animate-pulse uppercase text-xs font-bold">Cargando datos...</div>
               ) : proposals.length > 0 ? (
                 proposals.map(p => (
@@ -162,7 +188,7 @@ export default function Dashboard() {
             </div>
           </div>
         ) : (
-          /* VISTA PERFIL LLAMANDO AL COMPONENTE EXTERNO */
+          /* VISTA PERFIL */
           <div className="flex justify-center animate-in zoom-in-95 duration-500">
             <UserProfile />
           </div>
