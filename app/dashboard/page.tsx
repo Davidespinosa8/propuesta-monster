@@ -1,11 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation"; // Importante para redirigir
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, Timestamp, deleteDoc, doc } from "firebase/firestore";
+import { collection, query, where, getDocs, Timestamp, deleteDoc, doc, getDoc } from "firebase/firestore";
 import Link from "next/link";
 import UserProfile from "@/components/UserProfile";
+
+// CONFIGURACIÓN
+const FREE_LIMIT = 10;
 
 interface Proposal {
   id: string;
@@ -17,53 +20,73 @@ interface Proposal {
 }
 
 export default function Dashboard() {
-  const { user, loading: authLoading } = useAuth(); // Usamos authLoading para saber si firebase terminó
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   
+  // ESTADOS DE UI
   const [view, setView] = useState<'dashboard' | 'perfil'>('dashboard');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  
+  // ESTADOS DE DATOS
   const [proposals, setProposals] = useState<Proposal[]>([]);
-  const [dataLoading, setDataLoading] = useState(true); // Renombramos para no confundir con authLoading
+  const [dataLoading, setDataLoading] = useState(true);
+  
+  // ESTADOS DEL PLAN Y PAGOS
+  const [userPlan, setUserPlan] = useState<'free' | 'pro'>('free');
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  // 1. SEGURIDAD: REDIRECCIÓN SI NO HAY USUARIO
+  // 1. SEGURIDAD: REDIRECCIÓN
   useEffect(() => {
     if (!authLoading && !user) {
       router.push("/login");
     }
   }, [authLoading, user, router]);
 
-  // 2. CARGA DE DATOS
+  // 2. CARGA DE DATOS Y PLAN
   useEffect(() => {
     if (!user) return;
     
-    const fetchProposals = async () => {
+    const fetchData = async () => {
       try {
+        // A) Cargar Presupuestos
         const q = query(
           collection(db, "proposals"), 
           where("freelancerId", "==", user.uid)
         );
-        
         const snap = await getDocs(q);
         const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Proposal));
         
+        // Ordenar por fecha
         docs.sort((a, b) => {
             const dateA = a.createdAt?.seconds || 0;
             const dateB = b.createdAt?.seconds || 0;
             return dateB - dateA;
         });
-
         setProposals(docs);
+
+        // B) Cargar Plan del Usuario
+        const userDocRef = doc(db, "users", user.uid);
+        const userSnap = await getDoc(userDocRef);
+        if (userSnap.exists()) {
+            const userData = userSnap.data();
+            if (userData.plan === 'pro') {
+                setUserPlan('pro');
+            }
+        }
       } catch (error) {
-        console.error("Error cargando propuestas:", error);
+        console.error("Error cargando datos:", error);
       } finally {
         setDataLoading(false);
       }
     };
 
-    fetchProposals();
+    fetchData();
   }, [user]);
 
-  // Función para borrar
+  // --- LÓGICA DE NEGOCIO ---
+
+  // Borrar Presupuesto
   const handleDelete = async (id: string) => {
     if (confirm("¿Estás seguro de que querés eliminar este presupuesto? No se puede recuperar.")) {
       try {
@@ -75,20 +98,50 @@ export default function Dashboard() {
     }
   };
 
-  // 3. PANTALLA DE CARGA (Bloqueo visual en incógnito)
-  // Si auth está cargando O no hay usuario, mostramos pantalla negra.
+  // Bloqueo de Creación (El Portero)
+  const handleCreateClick = (e: React.MouseEvent) => {
+      // Si es GRATIS y ya tiene 10 o más... Bloqueamos.
+      if (userPlan === 'free' && proposals.length >= FREE_LIMIT) {
+          e.preventDefault(); 
+          setShowUpgradeModal(true);
+      }
+  };
+
+  // Ir a Pagar (MercadoPago)
+  const handleBuyPro = async () => {
+    if(!user) return;
+    setIsProcessing(true);
+    try {
+        const response = await fetch('/api/checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                userId: user.uid,
+                userEmail: user.email 
+            })
+        });
+        const data = await response.json();
+        if (data.url) {
+            window.location.href = data.url; 
+        }
+    } catch (error) {
+        console.error("Error al ir a pagar:", error);
+        alert("Hubo un error iniciando el pago.");
+    } finally {
+        setIsProcessing(false);
+    }
+  };
+
+  // 3. PANTALLA DE CARGA (Incógnito Safe)
   if (authLoading || !user) {
     return (
       <div className="min-h-screen bg-dark-900 flex items-center justify-center">
         <div className="animate-pulse flex flex-col items-center gap-4">
-           {/* Spinner simple */}
            <div className="w-12 h-12 border-4 border-primary-DEFAULT border-t-transparent rounded-full animate-spin"></div>
         </div>
       </div>
     );
   }
-
-  // --- TU DISEÑO ORIGINAL RESTAURADO ---
 
   return (
     <main className="min-h-screen bg-dark-900 text-white p-4 md:p-8 relative overflow-hidden">
@@ -110,19 +163,43 @@ export default function Dashboard() {
           <Link href="/" className="flex items-center gap-4 text-gray-400 hover:text-white font-black text-xs uppercase italic transition-colors">Home</Link>
           <button onClick={() => { setView('dashboard'); setIsMenuOpen(false); }} className={`flex items-center gap-4 font-black text-xs uppercase italic transition-colors ${view === 'dashboard' ? 'text-primary-DEFAULT' : 'text-gray-400 hover:text-white'}`}>Dashboard</button>
           <button onClick={() => { setView('perfil'); setIsMenuOpen(false); }} className={`flex items-center gap-4 font-black text-xs uppercase italic transition-colors ${view === 'perfil' ? 'text-primary-DEFAULT' : 'text-gray-400 hover:text-white'}`}>Perfil</button>
+          
+          {/* BOTÓN PRO EN EL MENÚ */}
+          {userPlan === 'free' && (
+              <button 
+                onClick={handleBuyPro} 
+                disabled={isProcessing}
+                className="mt-8 w-full py-3 bg-linear-to-r from-yellow-400 to-orange-500 text-black font-black text-xs uppercase tracking-widest rounded-xl hover:scale-105 transition-transform flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20"
+              >
+                {isProcessing ? 'Cargando...' : '⚡ Pasate a PRO'}
+              </button>
+          )}
         </nav>
       </div>
 
       <div className="relative z-10 max-w-5xl mx-auto">
         {view === 'dashboard' ? (
           <div className="animate-in fade-in duration-500">
+            
+            {/* HEADER */}
             <header className="flex justify-between items-center mb-12">
-              <h1 className="text-4xl font-black italic tracking-tighter uppercase">Mis Obras</h1>
-              <Link href="/crear" className="px-6 py-4 bg-white text-black font-black rounded-2xl text-xs uppercase hover:scale-105 transition-transform">
+              <div className="flex items-center gap-3">
+                  <h1 className="text-4xl font-black italic tracking-tighter uppercase">Mis Obras</h1>
+                  {userPlan === 'pro' && <span className="text-[10px] bg-yellow-500 text-black px-2 py-0.5 rounded font-bold uppercase">PRO</span>}
+              </div>
+
+              {/* BOTÓN NUEVO (Con bloqueo) */}
+              <Link 
+                href="/crear" 
+                onClick={handleCreateClick}
+                className="px-6 py-4 bg-white text-black font-black rounded-2xl text-xs uppercase hover:scale-105 transition-transform flex items-center gap-2"
+              >
                 Nuevo +
+                {userPlan === 'free' && <span className="opacity-50 ml-1">({proposals.length}/{FREE_LIMIT})</span>}
               </Link>
             </header>
             
+            {/* LISTA */}
             <div className="grid gap-4">
               {dataLoading ? (
                 <div className="text-center text-gray-500 animate-pulse uppercase text-xs font-bold">Cargando datos...</div>
@@ -194,6 +271,56 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* --- MODAL PREMIUM (El Cartelito) --- */}
+      {showUpgradeModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+              <div className="bg-dark-900 border border-white/10 rounded-3xl max-w-md w-full p-8 relative shadow-2xl overflow-hidden text-center animate-in zoom-in-95 duration-300">
+                  
+                  {/* Fondo Brillante */}
+                  <div className="absolute top-0 left-0 w-full h-2 bg-linear-to-r from-yellow-400 to-orange-500"></div>
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 bg-orange-500/20 blur-[60px] rounded-full pointer-events-none"></div>
+
+                  <button 
+                    onClick={() => setShowUpgradeModal(false)}
+                    className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
+                  >
+                    ✕
+                  </button>
+
+                  <div className="relative z-10">
+                    <span className="text-4xl mb-4 block">🚀</span>
+                    <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter mb-2">
+                        ¡Límite Alcanzado!
+                    </h3>
+                    <p className="text-gray-400 text-sm mb-6 leading-relaxed">
+                        Ya creaste <b>10 presupuestos</b>. ¡Sos una máquina!<br/>
+                        Para seguir creando sin límites y profesionalizarte, desbloqueá el plan PRO.
+                    </p>
+
+                    <button 
+                        onClick={handleBuyPro}
+                        disabled={isProcessing}
+                        className="w-full py-4 bg-linear-to-r from-yellow-400 to-orange-500 text-black font-black uppercase tracking-widest rounded-xl hover:scale-[1.02] hover:shadow-[0_0_20px_rgba(245,158,11,0.4)] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                    >
+                        {isProcessing ? (
+                            <>Cargando... <span className="animate-spin">⏳</span></>
+                        ) : (
+                            <>Desbloquear Ilimitado 🔓</>
+                        )}
+                    </button>
+                    
+                    <button 
+                        onClick={() => setShowUpgradeModal(false)}
+                        className="mt-3 block w-full py-2 text-gray-600 font-bold text-[10px] uppercase hover:text-white transition-colors"
+                    >
+                        Quizás más tarde
+                    </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
     </main>
   );
 }
