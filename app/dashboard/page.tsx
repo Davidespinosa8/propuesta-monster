@@ -8,7 +8,7 @@ import Link from "next/link";
 import UserProfile from "@/components/UserProfile";
 
 // CONFIGURACIÓN
-const FREE_LIMIT = 10;
+const FREE_LIMIT = 6;
 
 interface Proposal {
   id: string;
