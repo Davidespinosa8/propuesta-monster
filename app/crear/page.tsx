@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { collection, addDoc, doc, getDoc } from "firebase/firestore"; 
+// 1. AGREGAMOS increment y updateDoc A LOS IMPORTS
+import { collection, addDoc, doc, getDoc, updateDoc, increment } from "firebase/firestore"; 
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
@@ -173,8 +174,15 @@ export default function CreateQuote() {
         status: "pending"
       };
 
+      // 1. Guardamos el presupuesto
       const docRef = await addDoc(collection(db, "proposals"), proposalData);
       
+      // 2. 🔥 AUMENTAMOS EL CONTADOR DEL USUARIO (+1) 🔥
+      const userRef = doc(db, "users", user.uid);
+      await updateDoc(userRef, {
+        usageCount: increment(1)
+      });
+
       if (redirectTarget === 'view') {
           router.push(`/p/${docRef.id}`);
       } else {
