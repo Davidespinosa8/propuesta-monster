@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-// 1. AGREGAMOS increment y updateDoc A LOS IMPORTS
 import { collection, addDoc, doc, getDoc, updateDoc, increment } from "firebase/firestore"; 
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
@@ -14,7 +13,7 @@ const CATEGORIES = [
   { id: "gasista", label: "Gasista", icon: "🔥" },
   { id: "albanil", label: "Albañilería", icon: "🧱" },
   { id: "durlock", label: "Durlock", icon: "🛠️" },
-  { id: "digital", label: "Digital / Libre", icon: "💻" },
+  { id: "digital", label: "Digital / Diseño", icon: "💻" },
 ];
 
 // INTERFACES
@@ -46,12 +45,12 @@ export default function CreateQuote() {
   const [whatsapp, setWhatsapp] = useState("");
   const [portfolioUrl, setPortfolioUrl] = useState(""); 
   
-  // DATOS OFICIOS
+  // DATOS OFICIOS (Ahora incluye Digital)
   const [refItems, setRefItems] = useState<RefItem[]>([]); 
   const [searchTerm, setSearchTerm] = useState(""); 
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]); 
 
-  // DATOS DIGITAL
+  // DATOS DIGITAL MANUALES
   const [digitalBasePrice, setDigitalBasePrice] = useState(0);
   const [digitalServices, setDigitalServices] = useState<DigitalService[]>([]); 
 
@@ -76,10 +75,10 @@ export default function CreateQuote() {
     if (user) fetchUserRole();
   }, [user, loading, router]);
 
-  // 2. CARGA DE PRECIOS POR CATEGORÍA
+  // 2. CARGA DE PRECIOS POR CATEGORÍA (Modificado para habilitar Digital)
   useEffect(() => {
     const fetchPrices = async () => {
-      if (activeCategory === "digital") return;
+      // ELIMINADO: if (activeCategory === "digital") return;
       try {
         setRefItems([]); 
         const pricesDoc = await getDoc(doc(db, "precios_referencia", activeCategory));
@@ -134,7 +133,6 @@ export default function CreateQuote() {
     return totalOficios + totalDigital;
   };
 
-  // HELPER PARA SABER CUANTOS TENGO DE UN ITEM
   const getItemQty = (id: string) => {
     const found = selectedItems.find(i => i.id === id);
     return found ? found.qty : 0;
@@ -174,10 +172,8 @@ export default function CreateQuote() {
         status: "pending"
       };
 
-      // 1. Guardamos el presupuesto
       const docRef = await addDoc(collection(db, "proposals"), proposalData);
       
-      // 2. 🔥 AUMENTAMOS EL CONTADOR DEL USUARIO (+1) 🔥
       const userRef = doc(db, "users", user.uid);
       await updateDoc(userRef, {
         usageCount: increment(1)
@@ -226,14 +222,19 @@ export default function CreateQuote() {
         <div className="lg:col-span-7 space-y-6">
           <div className="mb-2">
             <p className="text-accent-DEFAULT text-xs font-bold tracking-widest uppercase mb-1">Nueva Propuesta</p>
-            <h2 className="text-3xl font-black text-white">Calculadora de Obra</h2>
+            <h2 className="text-3xl font-black text-white">
+                {activeCategory === 'digital' ? 'Tarifario Digital' : 'Calculadora de Obra'}
+            </h2>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap gap-2 mb-6">
             {CATEGORIES.map(cat => (
               <button
                 key={cat.id}
-                onClick={() => setActiveCategory(cat.id)}
+                onClick={() => {
+                    setActiveCategory(cat.id);
+                    setSearchTerm(""); // Limpiar búsqueda al cambiar
+                }}
                 className={`flex items-center justify-center gap-2 px-3 py-3 rounded-xl border transition-all duration-200 ${
                   activeCategory === cat.id 
                   ? "bg-white text-dark-900 border-white font-black" 
@@ -246,32 +247,9 @@ export default function CreateQuote() {
             ))}
           </div>
 
-          <div className="h-[500px] flex flex-col">
-            {activeCategory === 'digital' ? (
-              <div className="bg-dark-800/50 p-6 rounded-2xl border border-dark-700 space-y-6 flex-1">
-                <div>
-                  <label className="text-gray-400 text-xs font-bold uppercase">Honorarios Base</label>
-                  <input 
-                    type="number" 
-                    placeholder="0"
-                    value={digitalBasePrice === 0 ? "" : digitalBasePrice} 
-                    onChange={e => setDigitalBasePrice(Number(e.target.value))}
-                    className="w-full bg-dark-900 border border-dark-600 rounded-xl p-4 text-white text-2xl font-mono mt-2 outline-none focus:border-primary-DEFAULT transition-colors placeholder:text-dark-700" 
-                  />
-                </div>
-                <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                  <button onClick={addDigitalService} className="w-full mb-4 py-2 bg-primary-DEFAULT/20 text-primary-DEFAULT border border-primary-DEFAULT/30 rounded-lg text-xs font-bold">+ AGREGAR ITEM MANUAL</button>
-                  {digitalServices.map(s => (
-                    <div key={s.id} className="flex gap-2 mb-2">
-                      <input placeholder="Descripción" value={s.title} onChange={e => updateDigitalService(s.id, 'title', e.target.value)} className="flex-1 bg-dark-900 border border-dark-600 rounded-lg p-3 text-white text-sm" />
-                      <input placeholder="$" value={s.price} onChange={e => updateDigitalService(s.id, 'price', Number(e.target.value))} className="w-24 bg-dark-900 border border-dark-600 rounded-lg p-3 text-white text-sm" />
-                      <button onClick={() => removeDigitalService(s.id)} className="text-red-400 p-2">×</button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="bg-dark-800/50 p-6 rounded-2xl border border-dark-700 flex flex-col h-full">
+          <div className="h-[600px] flex flex-col gap-4">
+            {/* BUSCADOR Y LISTA (Funciona para todas las categorías ahora) */}
+            <div className="bg-dark-800/50 p-6 rounded-2xl border border-dark-700 flex flex-col flex-1 min-h-0">
                 <input 
                   type="text" 
                   placeholder={`🔍 Buscar en ${CATEGORIES.find(c => c.id === activeCategory)?.label}...`}
@@ -300,7 +278,6 @@ export default function CreateQuote() {
                             <p className={`font-bold transition-colors ${isSelected ? "text-white" : "text-gray-200"}`}>
                               {item.task}
                             </p>
-                            {/* BADGE DE CANTIDAD */}
                             {isSelected && (
                               <span className="bg-primary-DEFAULT text-dark-900 text-[10px] font-black px-2 py-0.5 rounded-full animate-in zoom-in">
                                 x{qty}
@@ -315,6 +292,25 @@ export default function CreateQuote() {
                       </button>
                     );
                   })}
+                  {refItems.length === 0 && <p className="text-center text-gray-600 py-10">Cargando tarifario...</p>}
+                </div>
+            </div>
+
+            {/* SECCIÓN MANUAL (Visible solo en Digital) */}
+            {activeCategory === 'digital' && (
+              <div className="bg-dark-800/50 p-6 rounded-2xl border border-dark-700">
+                <p className="text-gray-400 text-xs font-bold uppercase mb-4 tracking-widest">¿No está en la lista? Agregalo a mano:</p>
+                <div className="space-y-4">
+                  <div className="flex-1 overflow-y-auto max-h-40 pr-2 custom-scrollbar">
+                    {digitalServices.map(s => (
+                      <div key={s.id} className="flex gap-2 mb-2">
+                        <input placeholder="Descripción del servicio" value={s.title} onChange={e => updateDigitalService(s.id, 'title', e.target.value)} className="flex-1 bg-dark-900 border border-dark-600 rounded-lg p-3 text-white text-sm" />
+                        <input placeholder="$" type="number" value={s.price === 0 ? "" : s.price} onChange={e => updateDigitalService(s.id, 'price', Number(e.target.value))} className="w-24 bg-dark-900 border border-dark-600 rounded-lg p-3 text-white text-sm" />
+                        <button onClick={() => removeDigitalService(s.id)} className="text-red-400 p-2 hover:bg-red-500/10 rounded">×</button>
+                      </div>
+                    ))}
+                  </div>
+                  <button type="button" onClick={addDigitalService} className="w-full py-2 bg-primary-DEFAULT/10 text-primary-DEFAULT border border-primary-DEFAULT/30 rounded-lg text-xs font-bold hover:bg-primary-DEFAULT/20 transition-all">+ AGREGAR ITEM MANUAL</button>
                 </div>
               </div>
             )}
@@ -331,44 +327,45 @@ export default function CreateQuote() {
               <input required placeholder="WhatsApp (Ej: 54911...)" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className="w-full bg-dark-900 border border-dark-600 rounded-xl p-3 text-white outline-none" />
               
               <div className="pt-2">
-                <label className="text-[12px] text-accent-DEFAULT font-bold uppercase ml-1">Link de tu Portafolio (Opcional)</label>
-                <input placeholder="Google Drive, Instagram, etc." value={portfolioUrl} onChange={e => setPortfolioUrl(e.target.value)} className="w-full bg-dark-900 border border-dark-600 rounded-xl p-3 text-white outline-none mt-1" />
+                <label className="text-[12px] text-accent-DEFAULT font-bold uppercase ml-1">Link de Portafolio / Referencia</label>
+                <input placeholder="Behance, Drive, Web, etc." value={portfolioUrl} onChange={e => setPortfolioUrl(e.target.value)} className="w-full bg-dark-900 border border-dark-600 rounded-xl p-3 text-white outline-none mt-1" />
               </div>
             </div>
 
             <div className="max-h-60 overflow-y-auto space-y-2 mb-6 pr-2 custom-scrollbar">
+              {/* Items seleccionados de la lista */}
               {selectedItems.map(item => (
                 <div key={item.id} className="bg-dark-900 p-3 rounded-lg border border-dark-700 flex justify-between items-center">
                   <div className="flex-1">
                     <p className="text-s text-white font-bold mb-1">{item.task}</p>
-                    
                     <div className="flex items-center gap-2">
                         <input 
                           type="number" 
                           value={item.qty} 
                           onChange={(e) => updateQty(item.id, Number(e.target.value))} 
-                          className="w-10 bg-dark-800 text-[15px] text-center text-white rounded border border-dark-600 p-1" 
-                          title="Cantidad"
+                          className="w-10 bg-dark-800 text-center text-white rounded border border-dark-600 p-1" 
                         />
-                        <span className="text-[15px] text-gray-500 font-bold">x</span>
-                        
+                        <span className="text-gray-500 font-bold">x</span>
                         <div className="flex items-center bg-dark-800 rounded border border-dark-600 px-1">
-                          <span className="text-[15px] text-gray-500 mr-1">$</span>
+                          <span className="text-gray-500 mr-1">$</span>
                           <input 
                             type="number"
                             value={item.customPrice}
                             onChange={(e) => updateCustomPrice(item.id, Number(e.target.value))}
-                            className="w-16 bg-transparent text-[15px] text-white outline-none font-mono"
+                            className="w-20 bg-transparent text-white outline-none font-mono"
                           />
                         </div>
-
-                        <span className="text-[12px] text-gray-500 uppercase font-bold tracking-wider">
-                          /{item.unit}
-                        </span>
                     </div>
-
                   </div>
                   <button type="button" onClick={() => updateQty(item.id, 0)} className="text-red-500 text-xs ml-2 hover:bg-red-500/10 p-1 rounded">✕</button>
+                </div>
+              ))}
+              
+              {/* Vista previa de items manuales */}
+              {digitalServices.filter(s => s.title).map(s => (
+                <div key={s.id} className="bg-dark-800 p-3 rounded-lg border border-dashed border-primary-DEFAULT/30 flex justify-between items-center">
+                   <p className="text-xs text-gray-300 font-bold">{s.title}</p>
+                   <p className="text-xs text-primary-DEFAULT font-black">${s.price.toLocaleString()}</p>
                 </div>
               ))}
             </div>
@@ -380,7 +377,6 @@ export default function CreateQuote() {
               </div>
             </div>
 
-            {/* BOTONERA DOBLE */}
             <div className="grid grid-cols-2 gap-3">
               <button 
                 type="submit" 
@@ -398,7 +394,6 @@ export default function CreateQuote() {
                 Generar 🚀
               </button>
             </div>
-
           </form>
         </div>
       </div>
