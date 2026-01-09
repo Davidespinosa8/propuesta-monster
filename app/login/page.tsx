@@ -7,10 +7,9 @@ export default function LoginPage() {
   const { user, loginWithGoogle } = useAuth();
   const router = useRouter();
 
-  // Si ya está logueado, lo mandamos al Dashboard (CRM)
   useEffect(() => {
     if (user) {
-      router.push("/dashboard"); // Esta ruta la crearemos luego, será tu CRM
+      router.push("/dashboard"); 
     }
   }, [user, router]);
 
