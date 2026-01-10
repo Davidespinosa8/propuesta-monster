@@ -153,7 +153,7 @@ export default function Home() {
                 <div className="bg-dark-800/90 backdrop-blur-xl border-2 border-yellow-500/50 rounded-[2.5rem] p-10 flex flex-col items-center text-center relative overflow-hidden transform md:scale-105 shadow-[0_0_50px_rgba(234,179,8,0.2)] z-20">
                     <div className="absolute top-0 inset-x-0 h-1.5 bg-linear-to-r from-yellow-400 to-orange-500"></div>
                     <div className="absolute top-5 right-5 bg-green-500 text-black text-[10px] font-black px-3 py-1.5 rounded-full animate-pulse shadow-lg shadow-green-500/20">
-                        50% OFF LUNA DE MIEL
+                        50% OFF
                     </div>
 
                     <span className="text-yellow-500 font-bold uppercase text-xs tracking-widest mb-4">Profesional</span>
