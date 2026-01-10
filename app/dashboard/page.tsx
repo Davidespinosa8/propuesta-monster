@@ -253,17 +253,26 @@ export default function Dashboard() {
                         </div>
                     </div>
 
-                    {/* ACCIONES */}
+                    {/* ACCIONES (OJO, LÁPIZ, DUPLICAR Y BASURA) */}
                     <div className="flex items-center gap-2">
-                        <Link href={`/p/${p.id}`} className="p-3 bg-white/5 rounded-xl hover:bg-white hover:text-black transition-all text-gray-400" title="Ver Propuesta">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                        {/* Ver */}
+                        <Link href={`/p/${p.id}`} className="p-2 bg-white/5 rounded-lg hover:bg-white hover:text-black transition-all text-gray-400" title="Ver">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                         </Link>
-                        <button 
-                            onClick={() => handleDelete(p.id)}
-                            className="p-3 bg-red-500/10 rounded-xl hover:bg-red-500 hover:text-white transition-all text-red-500"
-                            title="Eliminar Propuesta"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+
+                        {/* Editar (El Lapicito) */}
+                        <Link href={`/crear?edit=${p.id}`} className="p-2 bg-white/5 rounded-lg hover:bg-blue-500 hover:text-white transition-all text-gray-400" title="Editar">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        </Link>
+
+                        {/* Duplicar (Dos hojas) */}
+                        <Link href={`/crear?duplicate=${p.id}`} className="p-2 bg-white/5 rounded-lg hover:bg-accent-DEFAULT hover:text-black transition-all text-gray-400" title="Duplicar">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
+                        </Link>
+
+                        {/* Eliminar */}
+                        <button onClick={() => handleDelete(p.id)} className="p-2 bg-red-500/10 rounded-lg hover:bg-red-500 hover:text-white transition-all text-red-500">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                         </button>
                     </div>
 
