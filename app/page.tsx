@@ -66,10 +66,9 @@ export default function Home() {
           
           {/* Badge pequeño */}
           <div className="inline-block px-4 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm mb-4 shadow-[0_0_20px_rgba(139,92,246,0.2)]">
-             <span className="text-[10px] md:text-xs font-bold tracking-[0.2em] uppercase text-accent-DEFAULT glow-text-animated">Software para Oficios</span>
+            <span className="text-[10px] md:text-xs font-bold tracking-[0.2em] uppercase text-accent-DEFAULT glow-text-animated">Software para Oficios</span>
           </div>
           
-          {/* TÍTULO ORIGINAL RESTAURADO */}
           <h1 className="text-6xl md:text-8xl font-black text-white tracking-tighter leading-[0.9] drop-shadow-[0_0_25px_rgba(139,92,246,0.3)]">
             PROPUESTA<br />
             <span className="text-transparent bg-clip-text bg-linear-to-r from-primary-DEFAULT to-accent-DEFAULT">MONSTER</span>
@@ -78,7 +77,7 @@ export default function Home() {
           {/* Bajada de Marketing */}
           <p className="text-gray-400 text-lg md:text-2xl max-w-2xl mx-auto leading-relaxed">
             <span className="text-white font-bold block mb-2">Presupuestos que venden solos.</span>
-            Creá propuestas profesionales en 2 minutos para Electricidad, Plomería, Gas, Durlock y más.
+            Creá propuestas profesionales en 2 minutos para Digital, Electricidad, Plomería, Gas, Durlock y más.
           </p>
 
           {/* CTA HERO */}
