@@ -140,7 +140,7 @@ export default function Home() {
                     <ul className="space-y-5 mb-10 text-sm text-gray-300 w-full text-left pl-8">
                         <li className="flex items-center gap-3"><span className="text-gray-500 text-lg">✓</span> 6 Presupuestos de prueba</li>
                         <li className="flex items-center gap-3"><span className="text-gray-500 text-lg">✓</span> Calculadora básica</li>
-                        <li className="flex items-center gap-3"><span className="text-gray-500 text-lg">✓</span> PDF con marca de agua</li>
+                        <li className="flex items-center gap-3"><span className="text-gray-500 text-lg">✓</span> web interactiva limitada</li>
                     </ul>
 
                     <Link href="/login" className="w-full py-5 bg-white/5 text-white font-bold rounded-2xl uppercase text-xs hover:bg-white/10 transition-colors mt-auto tracking-widest border border-white/5">
