@@ -22,26 +22,55 @@ interface Proposal {
   freelancerId: string;
 }
 
-// --- FUNCIÓN PARA APLICAR CUPONES ---
+// --- FUNCIÓN PARA APLICAR CUPONES ACTUALIZADA ---
 const applyCoupon = async (userId: string, couponCode: string) => {
   try {
-    const couponRef = doc(db, "coupons", couponCode.toUpperCase());
+    // 1. Limpiamos y buscamos el cupón
+    const code = couponCode.trim().toUpperCase();
+    const couponRef = doc(db, "coupons", code);
     const couponSnap = await getDoc(couponRef);
 
-    if (!couponSnap.exists() || !couponSnap.data().active) {
-      throw new Error("El cupón no existe o expiró");
+    if (!couponSnap.exists()) {
+      throw new Error("El cupón no existe");
     }
 
-    if (couponSnap.data().discount === 100) {
+    const couponData = couponSnap.data();
+
+    // 2. Validaciones: Activo y Límites
+    if (!couponData.active) {
+      throw new Error("El cupón ya no está activo");
+    }
+
+    // Si el cupón tiene un límite definido (como el de Maurito que es 2)
+    if (couponData.limit && couponData.uses >= couponData.limit) {
+      throw new Error("Este cupón ya alcanzó su límite de usos");
+    }
+
+    // 3. Lógica para Cupón 100% (Activación Directa)
+    if (couponData.discount === 100) {
       const userRef = doc(db, "users", userId);
+      
+      // Actualizamos al usuario
       await updateDoc(userRef, {
         plan: "pro",
-        couponUsed: couponCode.toUpperCase()
+        couponUsed: code
       });
-      await updateDoc(couponRef, { uses: increment(1) });
+
+      // Incrementamos los usos en la colección de cupones
+      await updateDoc(couponRef, { 
+        uses: increment(1) 
+      });
+
       return { success: true, message: "¡Felicidades! Ya sos PRO 🚀" };
     }
-    return { success: false, message: "Este cupón no es para activación gratuita" };
+
+    // 4. Si es un cupón de descuento parcial (como MAURITENS)
+    return { 
+      success: false, 
+      message: `Cupón válido por ${couponData.discount}% de descuento. ¡Próximamente disponible en el pago!`,
+      discount: couponData.discount 
+    };
+
   } catch (error: any) {
     return { success: false, message: error.message };
   }
