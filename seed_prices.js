@@ -20,62 +20,92 @@ const db = getFirestore(app);
 const preciosReferencia = [
   // 1. ALBAÑILERÍA
   {
-    id: "albanil",
-    label: "Albañilería y Estructura (CIFRAS Dic-25)",
-    items: [
-      { id: "a01", task: "Limpieza de terreno y replanteo", unit: "m2", price: 3668 },
-      { id: "a02", task: "Demolición mampostería ladrillo común", unit: "m3", price: 98070 },
-      { id: "a03", task: "Demolición mampostería ladrillo hueco", unit: "m2", price: 16916 },
-      { id: "a04", task: "Picado de revoques (limpieza total)", unit: "m2", price: 12027 },
-      { id: "a05", task: "Apertura de vano en pared", unit: "u", price: 35400 },
-      { id: "a06", task: "Remoción de marco de madera/metálico", unit: "u", price: 18500 },
+  id: "albanil",
+  label: "Albañilería y Estructura (CIFRAS Dic-25)",
+  items: [
+    // --- DEMOLICIONES Y APERTURAS ---
+    { id: "a01", task: "Limpieza de terreno y replanteo", unit: "m2", price: 3668 },
+    { id: "a02", task: "Demolición mampostería ladrillo común", unit: "m3", price: 98070 },
+    { id: "a03", task: "Demolición mampostería ladrillo hueco", unit: "m2", price: 16916 },
+    { id: "a04", task: "Picado de revoques (limpieza total)", unit: "m2", price: 12027 },
+    { id: "a05", task: "Apertura de vano en pared", unit: "u", price: 35400 },
+    { id: "a06", task: "Remoción de marco de madera/metálico", unit: "u", price: 18500 },
 
-      { id: "a10", task: "Excavación manual para bases/zapatas", unit: "m3", price: 31120 },
-      { id: "a11", task: "Zapata corrida Hormigón Armado", unit: "m3", price: 104867 },
-      { id: "a12", task: "Viga de fundación H°A°", unit: "ml", price: 18500 },
-      { id: "a13", task: "Pilotín de H°A° (perforación manual)", unit: "u", price: 12800 },
-      { id: "a14", task: "Nivelación y compactación de suelo", unit: "m2", price: 4200 },
+    // --- MOVIMIENTO DE SUELOS Y FUNDACIONES ---
+    { id: "a10", task: "Excavación manual para bases/zapatas", unit: "m3", price: 31120 },
+    { id: "a11", task: "Zapata corrida Hormigón Armado", unit: "m3", price: 104867 },
+    { id: "a12", task: "Viga de fundación H°A°", unit: "ml", price: 18500 },
+    { id: "a13", task: "Pilotín de H°A° (perforación manual)", unit: "u", price: 12800 },
+    { id: "a14", task: "Nivelación y compactación de suelo", unit: "m2", price: 4200 },
 
-      { id: "a20", task: "Columnas H°A° completas", unit: "m3", price: 351949 },
-      { id: "a21", task: "Vigas H°A° completas", unit: "m3", price: 475225 },
-      { id: "a22", task: "Losa Viguetas + Ladrillos Cerámicos 12cm", unit: "m2", price: 54607 },
-      { id: "a23", task: "Losa Viguetas + EPS", unit: "m2", price: 51942 },
-      { id: "a24", task: "Capa de compresión", unit: "m2", price: 15400 },
-      { id: "a25", task: "Hormigón de pendiente", unit: "m2", price: 12500 },
+    // --- ESTRUCTURA Y LOSAS ---
+    { id: "a20", task: "Columnas H°A° completas", unit: "m3", price: 351949 },
+    { id: "a21", task: "Vigas H°A° completas", unit: "m3", price: 475225 },
+    { id: "a22", task: "Losa Viguetas + Ladrillos Cerámicos 12cm", unit: "m2", price: 54607 },
+    { id: "a23", task: "Losa Viguetas + EPS", unit: "m2", price: 51942 },
+    { id: "a24", task: "Capa de compresión", unit: "m2", price: 15400 },
+    { id: "a25", task: "Hormigón de pendiente", unit: "m2", price: 12500 },
 
-      { id: "a30", task: "Capa aisladora horizontal", unit: "ml", price: 12500 },
-      { id: "a31", task: "Capa aisladora vertical", unit: "m2", price: 9800 },
-      { id: "a32", task: "Muro Ladrillo Hueco 12x18x33", unit: "m2", price: 26062 },
-      { id: "a33", task: "Muro Ladrillo Hueco 18x18x33", unit: "m2", price: 27917 },
-      { id: "a34", task: "Muro Ladrillo Común 15cm", unit: "m2", price: 28900 },
-      { id: "a35", task: "Muro Bloque HCCA (Retak) 15cm", unit: "m2", price: 21498 },
-      { id: "a36", task: "Encadenado perimetral superior", unit: "ml", price: 14800 },
+    // --- MAMPOSTERÍAS ---
+    { id: "a30", task: "Capa aisladora horizontal", unit: "ml", price: 12500 },
+    { id: "a31", task: "Capa aisladora vertical", unit: "m2", price: 9800 },
+    { id: "a32", task: "Muro Ladrillo Hueco 12x18x33", unit: "m2", price: 26062 },
+    { id: "a33", task: "Muro Ladrillo Hueco 18x18x33", unit: "m2", price: 27917 },
+    { id: "a34", task: "Muro Ladrillo Común 15cm", unit: "m2", price: 28900 },
+    { id: "a35", task: "Muro Bloque HCCA (Retak) 15cm", unit: "m2", price: 21498 },
+    { id: "a36", task: "Encadenado perimetral superior", unit: "ml", price: 14800 },
 
-      { id: "a40", task: "Revoque Grueso fratasado", unit: "m2", price: 11500 },
-      { id: "a41", task: "Revoque Fino a la cal", unit: "m2", price: 9200 },
-      { id: "a42", task: "Revoque proyectado Monocapa", unit: "m2", price: 13800 },
-      { id: "a43", task: "Ejecución de Filos y Mochetas", unit: "ml", price: 7500 },
-      { id: "a44", task: "Armado de andamio exterior", unit: "gl", price: 45000 },
-      { id: "a45", task: "Colocación de cantoneras", unit: "ml", price: 3200 },
+    // --- REVOQUES Y ANDAMIOS ---
+    { id: "a40", task: "Revoque Grueso fratasado", unit: "m2", price: 11500 },
+    { id: "a41", task: "Revoque Fino a la cal", unit: "m2", price: 9200 },
+    { id: "a42", task: "Revoque proyectado Monocapa", unit: "m2", price: 13800 },
+    { id: "a43", task: "Ejecución de Filos y Mochetas", unit: "ml", price: 7500 },
+    { id: "a44", task: "Armado de andamio exterior", unit: "gl", price: 45000 },
+    { id: "a45", task: "Colocación de cantoneras", unit: "ml", price: 3200 },
 
-      { id: "a50", task: "Contrapiso de cascotes", unit: "m2", price: 15500 },
-      { id: "a51", task: "Carpeta de cemento", unit: "m2", price: 7190 },
-      { id: "a52", task: "Carpeta hidrófuga", unit: "m2", price: 10400 },
-      { id: "a53", task: "Colocación Porcelanato", unit: "m2", price: 18500 },
-      { id: "a54", task: "Colocación Cerámica", unit: "m2", price: 13800 },
-      { id: "a55", task: "Colocación de Zócalos", unit: "ml", price: 4800 },
-      { id: "a56", task: "Colocación de umbrales", unit: "ml", price: 9200 },
+    // --- CONTRAPISOS, CARPETAS Y PISOS DUROS ---
+    { id: "a50", task: "Contrapiso de cascotes", unit: "m2", price: 15500 },
+    { id: "a51", task: "Carpeta de cemento", unit: "m2", price: 7190 },
+    { id: "a52", task: "Carpeta hidrófuga", unit: "m2", price: 10400 },
 
-      { id: "a60", task: "Amure de marco", unit: "u", price: 22500 },
-      { id: "a61", task: "Canaleteado para cañerías", unit: "ml", price: 4500 },
-      { id: "a62", task: "Amure de tablero/caja", unit: "u", price: 15400 },
-      { id: "a63", task: "Ayuda de gremio general", unit: "gl", price: 55000 },
+    // COLOCACIÓN DE PISOS / REVESTIMIENTOS
+    { id: "a53", task: "Colocación Porcelanato (piso/pared)", unit: "m2", price: 18500 },
+    { id: "a54", task: "Colocación Cerámica piso/pared", unit: "m2", price: 13800 },
+    { id: "a55", task: "Colocación de Zócalos cerámicos", unit: "ml", price: 4800 },
+    { id: "a56", task: "Colocación de umbrales/alfajías mármol", unit: "ml", price: 9200 },
 
-      // --- COLOCACIÓN DE PISOS (SIN MATERIALES · CONTRATOS INDEPENDIENTES) ---
-      { id: "a70", task: "Colocación de alfombra (incluye adhesivo)", unit: "m2", price: 8950 },
-      { id: "a71", task: "Colocación y pulido de parquet/entablonado", unit: "m2", price: 20100 },
-      { id: "a72", task: "Colocación de piso flotante (zócalo y piso)", unit: "m2", price: 20500 },
-      { id: "a73", task: "Colocación de porcelanatos (mano de obra)", unit: "m2", price: 20000 }
+    // NUEVOS: DETALLE REVESTIMIENTOS
+    { id: "a57", task: "Revestimiento cerámico sólo pared (cocina/baño)", unit: "m2", price: 14500 },
+    { id: "a58", task: "Pegado de cerámica/porcelanato sobre piso existente", unit: "m2", price: 16000 },
+    { id: "a59", task: "Nivelación de piso previa a revestimiento (base autonivelante)", unit: "m2", price: 12500 },
+
+    // --- AYUDAS DE GREMIOS ---
+    { id: "a60", task: "Amure de marco puerta/ventana", unit: "u", price: 22500 },
+    { id: "a61", task: "Canaleteado para cañerías (Electric/Agua)", unit: "ml", price: 4500 },
+    { id: "a62", task: "Amure de tablero/caja de inspección", unit: "u", price: 15400 },
+    { id: "a63", task: "Ayuda de gremio general (obra nueva)", unit: "gl", price: 55000 },
+
+    // --- COLOCACIÓN DE PISOS (SIN MATERIALES · CONTRATOS INDEPENDIENTES) ---
+    { id: "a70", task: "Colocación de alfombra (incluye adhesivo)", unit: "m2", price: 8950 },
+    { id: "a71", task: "Colocación y pulido de parquet/entablonado", unit: "m2", price: 20100 },
+    { id: "a72", task: "Colocación de piso flotante (zócalo y piso)", unit: "m2", price: 20500 },
+    { id: "a73", task: "Colocación de porcelanatos (mano de obra)", unit: "m2", price: 20000 },
+
+    // --- BAÑOS Y ZONAS HÚMEDAS ---
+    { id: "a80", task: "Impermeabilización de baño (piso + zona de ducha)", unit: "m2", price: 13800 },
+    { id: "a81", task: "Formación de pendientes hacia rejilla", unit: "m2", price: 11500 },
+    { id: "a82", task: "Revestimiento venecita/mosaico en pared o piso", unit: "m2", price: 21000 },
+
+    // --- DEMOLICIÓN Y RETIRO ESPECÍFICO ---
+    { id: "a90", task: "Levantado de piso cerámico existente", unit: "m2", price: 10500 },
+    { id: "a91", task: "Levantado de carpeta de compresión", unit: "m2", price: 12800 },
+    { id: "a92", task: "Demolición de baño completo (sin retiro de escombros)", unit: "gl", price: 110000 },
+    { id: "a93", task: "Retiro de escombros (camión chico)", unit: "viaje", price: 55000 },
+
+    // --- REPARACIONES CHICAS ---
+    { id: "a100", task: "Reparación de revoque en parches menores a 1m2", unit: "u", price: 9500 },
+    { id: "a101", task: "Reparación de carpeta en parches menores a 1m2", unit: "u", price: 11000 },
+    { id: "a102", task: "Levantado y recolocado de cerámica suelta", unit: "u", price: 6500 }
     ]
   },
 
@@ -248,7 +278,7 @@ const preciosReferencia = [
     ]
   },
 
-  // 7. 🔥 DIGITAL / DISEÑO / MARKETING 🔥
+    // 7. 🔥 DIGITAL / DISEÑO / MARKETING 🔥
   {
     id: "digital",
     label: "Digital / Diseño / Marketing (Tarifario Est. 2026)",
@@ -297,7 +327,27 @@ const preciosReferencia = [
 
       // VIDEO / GRABACIÓN
       { id: "vid_jornada_contenido", task: "Jornada de grabación de contenido (hasta 4hs)", unit: "Jornada", price: 220000 },
-      { id: "vid_batch_reels_5", task: "Batch de 5 reels listos para publicar", unit: "Pack", price: 150000 }
+      { id: "vid_batch_reels_5", task: "Batch de 5 reels listos para publicar", unit: "Pack", price: 150000 },
+
+      // ──────────────────────────────────────
+      // EXTRA: ITEMS TOMADOS DE TARIFARIO.ORG
+      // ──────────────────────────────────────
+
+      // SERVICIOS POR HORA (Tarifario.org · Diseño por hora / Fotomontaje)
+      { id: "dg_hora_diseno", task: "Diseño gráfico por hora (Tarifario 2026 Cliente B)", unit: "Hora", price: 26915 },
+      { id: "dg_hora_fotomontaje", task: "Fotomontaje por hora (Tarifario 2026 Cliente B)", unit: "Hora", price: 24031 },
+
+      // SERVICIOS WEB ESPECÍFICOS (Tarifario.org · Web)
+      { id: "web_plantilla_mailing", task: "Diseño de plantilla para mailing (Tarifario 2026 Cliente B)", unit: "Unidad", price: 86513 },
+      { id: "web_firma_mail", task: "Firma / encabezado de email (Tarifario 2026 Cliente B)", unit: "Unidad", price: 69210 },
+
+      // REDES SOCIALES (Tarifario.org · Redes sociales)
+      { id: "mkt_estrategia_rrss_tarifario", task: "Estrategia de marketing y comunicación en redes (Tarifario 2026 Cliente B)", unit: "Proyecto", price: 206669 },
+      { id: "mkt_gestion_1a5", task: "Gestión de comunidades (1 a 5 posteos mensuales, Tarifario 2026 Cliente B)", unit: "Mes", price: 138420 },
+
+      // FOTO Y VIDEO SEGÚN TARIFARIO (Multimedia / Fotografía / Video)
+      { id: "ph_foto_producto_tarifario", task: "Foto de producto (por unidad, Tarifario 2026 Cliente B)", unit: "Unidad", price: 49985 },
+      { id: "vid_edicion_min_tarifario", task: "Edición de video (por minuto, Tarifario 2026 Cliente B)", unit: "Minuto", price: 27876 }
     ]
   }
 ];

@@ -112,8 +112,8 @@ export default function Home() {
              {/* Card 2 */}
              <div className="p-8 rounded-[2rem] bg-dark-800/60 border border-white/5 backdrop-blur-md hover:border-accent-DEFAULT/50 transition-all hover:-translate-y-1 group shadow-[0_0_30px_rgba(0,0,0,0.2)]">
                 <div className="w-14 h-14 bg-linear-to-br from-dark-700 to-dark-800 rounded-2xl flex items-center justify-center text-3xl mb-6 group-hover:scale-110 transition-transform shadow-inner border border-white/5">🚀</div>
-                <h3 className="text-xl font-black text-white mb-3 italic group-hover:text-accent-DEFAULT transition-colors">PDF Instantáneo</h3>
-                <p className="text-gray-400 text-sm leading-relaxed">Nada de Word. Generamos un link web profesional y un PDF listo para descargar y enviar.</p>
+                <h3 className="text-xl font-black text-white mb-3 italic group-hover:text-accent-DEFAULT transition-colors">Web personalizada</h3>
+                <p className="text-gray-400 text-sm leading-relaxed">Nada de Word. Generamos un link profesional y web interactiva lista para conectar con tu cliente.</p>
             </div>
              {/* Card 3 */}
              <div className="p-8 rounded-[2rem] bg-dark-800/60 border border-white/5 backdrop-blur-md hover:border-pink-500/50 transition-all hover:-translate-y-1 group shadow-[0_0_30px_rgba(0,0,0,0.2)]">
