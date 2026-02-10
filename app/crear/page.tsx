@@ -52,7 +52,11 @@ function CreateQuoteContent() {
   const [digitalBasePrice, setDigitalBasePrice] = useState(0);
   const [digitalServices, setDigitalServices] = useState<DigitalService[]>([]); 
 
-  // 1. SEGURIDAD Y CARGA DE ROL
+  // ESTADOS PARA ACCIÓN MANUAL
+  const [isAddingManual, setIsAddingManual] = useState(false);
+  const [manualTask, setManualTask] = useState("");
+  const [manualPrice, setManualPrice] = useState(0);
+
   useEffect(() => {
     if (!loading && !user) router.push("/login");
     const fetchUserRole = async () => {
@@ -63,35 +67,25 @@ function CreateQuoteContent() {
           const role = userDoc.data()?.role;
           if (CATEGORIES.some(c => c.id === role)) setActiveCategory(role);
         }
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setInitializing(false);
-      }
+      } catch (e) { console.error(e); } finally { setInitializing(false); }
     };
     if (user) fetchUserRole();
   }, [user, loading, router]);
 
-  // 2. LÓGICA DE EDICIÓN / DUPLICACIÓN (RELLENAR CAMPOS)
   useEffect(() => {
     const loadProposal = async () => {
       const id = editId || duplicateId;
-      // Solo cargamos si tenemos un ID y el componente ya inicializó el usuario
       if (!id || initializing) return;
-
       try {
         const docRef = doc(db, "proposals", id);
         const snap = await getDoc(docRef);
-        
         if (snap.exists()) {
           const data = snap.data();
           setClientName(data.clientName || "");
           setWhatsapp(data.whatsapp || "");
           setPortfolioUrl(data.portfolioUrl || "");
-
           const items: SelectedItem[] = [];
           const manual: DigitalService[] = [];
-
           data.services?.forEach((s: any) => {
             if (s.id === 'base') {
               setDigitalBasePrice(s.price);
@@ -100,13 +94,8 @@ function CreateQuoteContent() {
               const parts = titlePart.split('x ');
               const qty = parts.length > 1 ? parseInt(parts[0]) : 1;
               const task = parts.length > 1 ? parts[1] : titlePart;
-              
               items.push({
-                id: s.id,
-                task: task,
-                qty: qty,
-                price: s.price / qty,
-                customPrice: s.price / qty,
+                id: s.id, task, qty, price: s.price / qty, customPrice: s.price / qty,
                 unit: s.desc.split('Unidad: ')[1]?.split(' - ')[0] || "u",
                 category: s.desc.split('Rubro: ')[1] || "digital"
               });
@@ -117,28 +106,22 @@ function CreateQuoteContent() {
           setSelectedItems(items);
           setDigitalServices(manual);
         }
-      } catch (e) {
-        console.error("Error al cargar la propuesta:", e);
-      }
+      } catch (e) { console.error(e); }
     };
     loadProposal();
   }, [editId, duplicateId, initializing]);
 
-  // 3. CARGA DE PRECIOS REFERENCIA
   useEffect(() => {
     const fetchPrices = async () => {
       try {
         setRefItems([]); 
         const pricesDoc = await getDoc(doc(db, "precios_referencia", activeCategory));
-        if (pricesDoc.exists()) {
-          setRefItems(pricesDoc.data()?.items || []);
-        }
+        if (pricesDoc.exists()) setRefItems(pricesDoc.data()?.items || []);
       } catch (e) { console.error(e); }
     };
     if (!initializing) fetchPrices();
   }, [activeCategory, initializing]);
 
-  // CARRITO
   const addToBudget = (item: RefItem) => {
     const existing = selectedItems.find(i => i.id === item.id);
     if (existing) {
@@ -146,6 +129,16 @@ function CreateQuoteContent() {
     } else {
       setSelectedItems([...selectedItems, { ...item, qty: 1, customPrice: item.price, category: activeCategory }]);
     }
+  };
+
+  const addManualToBudget = () => {
+    if (!manualTask || manualPrice <= 0) return;
+    const newItem: SelectedItem = {
+      id: `manual-${Date.now()}`, task: manualTask, unit: "Personalizado",
+      price: manualPrice, qty: 1, customPrice: manualPrice, category: "manual"
+    };
+    setSelectedItems([...selectedItems, newItem]);
+    setManualTask(""); setManualPrice(0); setIsAddingManual(false);
   };
 
   const updateQty = (id: string, qty: number) => {
@@ -166,62 +159,42 @@ function CreateQuoteContent() {
     return totalOficios + totalManual;
   };
 
-  // GUARDAR
   const saveToFirebase = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
-
     const finalServices = [
       ...selectedItems.map(i => ({
-        id: i.id,
-        title: `${i.qty}x ${i.task}`,
-        price: i.customPrice * i.qty,
+        id: i.id, title: `${i.qty}x ${i.task}`, price: i.customPrice * i.qty,
         desc: `Unidad: ${i.unit} - Rubro: ${i.category}`
       })),
       ...digitalServices.map(s => ({ id: s.id, title: s.title, price: s.price, desc: s.desc }))
     ];
-
-    if (digitalBasePrice > 0) {
-      finalServices.push({ id: 'base', title: 'Honorarios Base', price: digitalBasePrice, desc: 'Gestión' });
-    }
+    if (digitalBasePrice > 0) finalServices.push({ id: 'base', title: 'Honorarios Base', price: digitalBasePrice, desc: 'Gestión' });
 
     try {
       const proposalData = {
-        freelancerName: user.displayName || "Profesional",
-        freelancerId: user.uid,
-        clientName,
-        whatsapp,
-        portfolioUrl,
-        services: finalServices,
-        total: calculateTotal(),
-        createdAt: new Date(),
-        status: "pending"
+        freelancerName: user.displayName || "Profesional", freelancerId: user.uid,
+        clientName, whatsapp, portfolioUrl, services: finalServices,
+        total: calculateTotal(), createdAt: new Date(), status: "pending"
       };
-
       let finalId = "";
       if (editId) {
-        // ACTUALIZAR EXISTENTE
         await setDoc(doc(db, "proposals", editId), proposalData);
         finalId = editId;
       } else {
-        // CREAR NUEVO O DUPLICAR
         const res = await addDoc(collection(db, "proposals"), proposalData);
         finalId = res.id;
-        // Solo descontamos uso si no es una edición
         await updateDoc(doc(db, "users", user.uid), { usageCount: increment(1) });
       }
-
       router.push(redirectTarget === 'view' ? `/p/${finalId}` : '/dashboard');
-    } catch (e) { 
-      console.error("Error al guardar:", e);
-      alert("Hubo un error al guardar el presupuesto.");
-    }
+    } catch (e) { console.error(e); }
   };
 
   if (initializing) return <div className="min-h-screen bg-dark-900 flex items-center justify-center text-white italic">Iniciando...</div>;
 
   return (
     <main className="min-h-screen bg-dark-900 p-4 md:p-8 relative">
+      {/* MENÚ LATERAL */}
       <div className={`fixed top-0 right-0 h-full bg-dark-800 border-l border-white/10 transition-transform duration-500 z-50 ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'} w-72 shadow-2xl`}>
         <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="absolute top-1/2 -left-10 bg-dark-800 p-3 rounded-l-2xl text-white shadow-xl">
             {isMenuOpen ? '〉' : '〈'}
@@ -246,9 +219,11 @@ function CreateQuoteContent() {
             ))}
           </div>
 
-          <div className="bg-dark-800/50 p-6 rounded-2xl border border-white/5 h-150 flex flex-col">
-            <input type="text" placeholder="Buscar trabajo..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-dark-900 border border-white/10 rounded-xl p-4 text-white mb-4 outline-none focus:border-primary-DEFAULT" />
-            <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+          {/* CONTENEDOR DE LISTA CON BOTÓN FIJO */}
+          <div className="bg-dark-800/50 p-6 rounded-2xl border border-white/5 h-150 flex flex-col relative overflow-hidden">
+            <input type="text" placeholder="Buscar trabajo..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-dark-900 border border-white/10 rounded-xl p-4 text-white mb-4 outline-none focus:border-primary-DEFAULT z-10" />
+            
+            <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar pb-24">
               {refItems.filter(i => i.task.toLowerCase().includes(searchTerm.toLowerCase())).map(item => {
                 const qty = selectedItems.find(si => si.id === item.id)?.qty || 0;
                 return (
@@ -262,42 +237,66 @@ function CreateQuoteContent() {
                 )
               })}
             </div>
+
+            {/* PANEL FIJO INFERIOR */}
+            <div className="absolute bottom-0 left-0 w-full p-4 bg-dark-800 border-t border-white/5 z-20">
+              {!isAddingManual ? (
+                <button 
+                  onClick={() => setIsAddingManual(true)}
+                  className="w-full py-4 border-2 border-dashed border-white/10 rounded-xl text-gray-500 hover:text-white hover:border-primary-DEFAULT transition-all font-black text-[10px] uppercase tracking-widest bg-dark-900/50"
+                >
+                  + ¿No encontrás el trabajo? Agregalo manual
+                </button>
+              ) : (
+                <div className="bg-dark-900 p-4 rounded-xl border border-primary-DEFAULT animate-in slide-in-from-bottom-2 shadow-2xl">
+                  <div className="space-y-3">
+                    <input autoFocus placeholder="Ej: Pintura de rejas..." value={manualTask} onChange={e => setManualTask(e.target.value)} className="w-full bg-dark-800 border border-white/10 rounded-lg p-3 text-white text-sm outline-none" />
+                    <div className="flex gap-2">
+                      <input type="number" placeholder="Precio $" value={manualPrice || ""} onChange={e => setManualPrice(Number(e.target.value))} className="flex-1 bg-dark-800 border border-white/10 rounded-lg p-3 text-white text-sm outline-none" />
+                      <button type="button" onClick={addManualToBudget} className="px-4 bg-primary-DEFAULT text-black font-black rounded-lg text-xs uppercase">Sumar</button>
+                      <button type="button" onClick={() => setIsAddingManual(false)} className="px-4 bg-white/5 text-gray-400 font-black rounded-lg text-xs uppercase">✕</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
+        {/* TICKET DE TRABAJO */}
         <div className="lg:col-span-5">
           <form onSubmit={saveToFirebase} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 sticky top-8">
             <h3 className="text-xl font-black text-white mb-6 uppercase italic border-b border-white/10 pb-4">Ticket de Trabajo</h3>
             <div className="space-y-3 mb-6">
-              <input required placeholder="Nombre del Cliente" value={clientName} onChange={e => setClientName(e.target.value)} className="w-full bg-dark-900 border border-white/10 rounded-xl p-4 text-white outline-none" />
-              <input required placeholder="WhatsApp" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className="w-full bg-dark-900 border border-white/10 rounded-xl p-4 text-white outline-none" />
-              <input placeholder="Link Portafolio" value={portfolioUrl} onChange={e => setPortfolioUrl(e.target.value)} className="w-full bg-dark-900 border border-white/10 rounded-xl p-4 text-white outline-none" />
+              <input required placeholder="Nombre del Cliente" value={clientName} onChange={e => setClientName(e.target.value)} className="w-full bg-dark-900 border border-white/10 rounded-xl p-4 text-white outline-none focus:border-white/20" />
+              <input required placeholder="WhatsApp" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className="w-full bg-dark-900 border border-white/10 rounded-xl p-4 text-white outline-none focus:border-white/20" />
+              <input placeholder="Link Portafolio" value={portfolioUrl} onChange={e => setPortfolioUrl(e.target.value)} className="w-full bg-dark-900 border border-white/10 rounded-xl p-4 text-white outline-none focus:border-white/20" />
             </div>
 
             <div className="max-h-60 overflow-y-auto space-y-2 mb-6 pr-2 custom-scrollbar">
               {selectedItems.map(item => (
-                <div key={item.id} className="bg-dark-900 p-3 rounded-xl border border-white/5 flex justify-between items-center">
+                <div key={item.id} className="bg-dark-900 p-3 rounded-xl border border-white/5 flex justify-between items-center group">
                   <div className="flex-1">
-                    <p className="text-xs font-bold text-white">{item.task}</p>
+                    <p className="text-xs font-bold text-white uppercase">{item.task}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <input type="number" value={item.qty} onChange={e => updateQty(item.id, Number(e.target.value))} className="w-12 bg-dark-800 text-center text-white rounded p-1 text-xs" />
-                      <span className="text-gray-500">x</span>
-                      <input type="number" value={item.customPrice} onChange={e => updateCustomPrice(item.id, Number(e.target.value))} className="w-20 bg-dark-800 text-white rounded p-1 text-xs" />
+                      <input type="number" value={item.qty} onChange={e => updateQty(item.id, Number(e.target.value))} className="w-12 bg-dark-800 text-center text-white rounded p-1 text-xs font-mono" />
+                      <span className="text-gray-600 text-[10px]">x</span>
+                      <input type="number" value={item.customPrice} onChange={e => updateCustomPrice(item.id, Number(e.target.value))} className="w-20 bg-dark-800 text-white rounded p-1 text-xs font-mono" />
                     </div>
                   </div>
-                  <button type="button" onClick={() => updateQty(item.id, 0)} className="text-red-500 ml-2 text-xl">×</button>
+                  <button type="button" onClick={() => updateQty(item.id, 0)} className="text-gray-600 hover:text-red-500 transition-colors ml-2 text-xl">✕</button>
                 </div>
               ))}
             </div>
 
             <div className="border-t border-white/10 pt-4 mb-6 flex justify-between items-end">
-              <span className="text-gray-500 font-bold uppercase text-[10px]">Total</span>
-              <span className="text-3xl font-black text-white">${calculateTotal().toLocaleString()}</span>
+              <span className="text-gray-500 font-bold uppercase text-[10px] tracking-widest">Total Estimado</span>
+              <span className="text-3xl font-black text-white tracking-tighter">${calculateTotal().toLocaleString()}</span>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <button type="submit" onClick={() => setRedirectTarget('dashboard')} className="py-4 bg-white/5 border border-white/10 text-white font-black rounded-xl text-xs uppercase hover:bg-white/10">💾 Guardar</button>
-              <button type="submit" onClick={() => setRedirectTarget('view')} className="py-4 bg-white text-black font-black rounded-xl text-xs uppercase hover:scale-105 transition-transform">🚀 Generar</button>
+              <button type="submit" onClick={() => setRedirectTarget('dashboard')} className="py-4 bg-white/5 border border-white/10 text-white font-black rounded-xl text-[10px] uppercase hover:bg-white/10 transition-all">💾 Guardar</button>
+              <button type="submit" onClick={() => setRedirectTarget('view')} className="py-4 bg-white text-black font-black rounded-xl text-[10px] uppercase hover:scale-[1.02] transition-all active:scale-95">🚀 Generar</button>
             </div>
           </form>
         </div>
