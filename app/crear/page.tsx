@@ -1,8 +1,12 @@
 "use client";
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { collection, addDoc, doc, getDoc, updateDoc, increment, setDoc } from "firebase/firestore"; 
-import { db } from "@/lib/firebase";
+import {
+  getProposalById,
+  getReferencePricesByCategory,
+  saveProposalByMode,
+} from "@/services/proposal.service";
+import { getUserRole } from "@/services/user.service";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
 
@@ -58,69 +62,102 @@ function CreateQuoteContent() {
   const [manualPrice, setManualPrice] = useState(0);
 
   useEffect(() => {
-    if (!loading && !user) router.push("/login");
-    const fetchUserRole = async () => {
-      if (!user) return;
-      try {
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (userDoc.exists() && userDoc.data()?.role) {
-          const role = userDoc.data()?.role;
-          if (CATEGORIES.some(c => c.id === role)) setActiveCategory(role);
-        }
-      } catch (e) { console.error(e); } finally { setInitializing(false); }
-    };
-    if (user) fetchUserRole();
-  }, [user, loading, router]);
+  if (!loading && !user) {
+    router.push("/login");
+    return;
+  }
+
+  const fetchUserRoleData = async () => {
+    if (!user) return;
+
+    try {
+      const role = await getUserRole(user.uid);
+      if (role && CATEGORIES.some((c) => c.id === role)) {
+        setActiveCategory(role);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setInitializing(false);
+    }
+  };
+
+  if (user) {
+    fetchUserRoleData();
+  }
+}, [user, loading, router]);
 
   useEffect(() => {
-    const loadProposal = async () => {
-      const id = editId || duplicateId;
-      if (!id || initializing) return;
-      try {
-        const docRef = doc(db, "proposals", id);
-        const snap = await getDoc(docRef);
-        if (snap.exists()) {
-          const data = snap.data();
-          setClientName(data.clientName || "");
-          setWhatsapp(data.whatsapp || "");
-          setPortfolioUrl(data.portfolioUrl || "");
-          const items: SelectedItem[] = [];
-          const manual: DigitalService[] = [];
-          data.services?.forEach((s: any) => {
-            if (s.id === 'base') {
-              setDigitalBasePrice(s.price);
-            } else if (s.desc?.includes("Rubro:")) {
-              const titlePart = s.title || "";
-              const parts = titlePart.split('x ');
-              const qty = parts.length > 1 ? parseInt(parts[0]) : 1;
-              const task = parts.length > 1 ? parts[1] : titlePart;
-              items.push({
-                id: s.id, task, qty, price: s.price / qty, customPrice: s.price / qty,
-                unit: s.desc.split('Unidad: ')[1]?.split(' - ')[0] || "u",
-                category: s.desc.split('Rubro: ')[1] || "digital"
-              });
-            } else {
-              manual.push({ id: s.id, title: s.title, price: s.price, desc: s.desc || "" });
-            }
+  const loadProposal = async () => {
+    const id = editId || duplicateId;
+    if (!id || initializing) return;
+
+    try {
+      const data = await getProposalById(id);
+      if (!data) return;
+
+      setClientName(data.clientName || "");
+      setWhatsapp(data.whatsapp || "");
+      setPortfolioUrl(data.portfolioUrl || "");
+
+      const items: SelectedItem[] = [];
+      const manual: DigitalService[] = [];
+      let basePrice = 0;
+
+      (data.services || []).forEach((s) => {
+        if (s.id === "base") {
+          basePrice = s.price;
+        } else if (s.desc?.includes("Rubro:")) {
+          const titlePart = s.title || "";
+          const parts = titlePart.split("x ");
+          const qty = parts.length > 1 ? parseInt(parts[0], 10) : 1;
+          const task = parts.length > 1 ? parts[1] : titlePart;
+
+          items.push({
+            id: s.id,
+            task,
+            qty,
+            price: s.price / qty,
+            customPrice: s.price / qty,
+            unit: s.desc.split("Unidad: ")[1]?.split(" - ")[0] || "u",
+            category: s.desc.split("Rubro: ")[1] || "digital",
           });
-          setSelectedItems(items);
-          setDigitalServices(manual);
+        } else {
+          manual.push({
+            id: s.id,
+            title: s.title || "",
+            price: s.price,
+            desc: s.desc || "",
+          });
         }
-      } catch (e) { console.error(e); }
-    };
-    loadProposal();
-  }, [editId, duplicateId, initializing]);
+      });
+
+      setDigitalBasePrice(basePrice);
+      setSelectedItems(items);
+      setDigitalServices(manual);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  loadProposal();
+}, [editId, duplicateId, initializing]);
 
   useEffect(() => {
-    const fetchPrices = async () => {
-      try {
-        setRefItems([]); 
-        const pricesDoc = await getDoc(doc(db, "precios_referencia", activeCategory));
-        if (pricesDoc.exists()) setRefItems(pricesDoc.data()?.items || []);
-      } catch (e) { console.error(e); }
-    };
-    if (!initializing) fetchPrices();
-  }, [activeCategory, initializing]);
+  const fetchPrices = async () => {
+    try {
+      setRefItems([]);
+      const items = await getReferencePricesByCategory(activeCategory);
+      setRefItems(items);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  if (!initializing) {
+    fetchPrices();
+  }
+}, [activeCategory, initializing]);
 
   const addToBudget = (item: RefItem) => {
     const existing = selectedItems.find(i => i.id === item.id);
@@ -160,35 +197,57 @@ function CreateQuoteContent() {
   };
 
   const saveToFirebase = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-    const finalServices = [
-      ...selectedItems.map(i => ({
-        id: i.id, title: `${i.qty}x ${i.task}`, price: i.customPrice * i.qty,
-        desc: `Unidad: ${i.unit} - Rubro: ${i.category}`
-      })),
-      ...digitalServices.map(s => ({ id: s.id, title: s.title, price: s.price, desc: s.desc }))
-    ];
-    if (digitalBasePrice > 0) finalServices.push({ id: 'base', title: 'Honorarios Base', price: digitalBasePrice, desc: 'Gestión' });
+  e.preventDefault();
+  if (!user) return;
 
-    try {
-      const proposalData = {
-        freelancerName: user.displayName || "Profesional", freelancerId: user.uid,
-        clientName, whatsapp, portfolioUrl, services: finalServices,
-        total: calculateTotal(), createdAt: new Date(), status: "pending"
-      };
-      let finalId = "";
-      if (editId) {
-        await setDoc(doc(db, "proposals", editId), proposalData);
-        finalId = editId;
-      } else {
-        const res = await addDoc(collection(db, "proposals"), proposalData);
-        finalId = res.id;
-        await updateDoc(doc(db, "users", user.uid), { usageCount: increment(1) });
-      }
-      router.push(redirectTarget === 'view' ? `/p/${finalId}` : '/dashboard');
-    } catch (e) { console.error(e); }
-  };
+  const finalServices = [
+    ...selectedItems.map((i) => ({
+      id: i.id,
+      title: `${i.qty}x ${i.task}`,
+      price: i.customPrice * i.qty,
+      desc: `Unidad: ${i.unit} - Rubro: ${i.category}`,
+    })),
+    ...digitalServices.map((s) => ({
+      id: s.id,
+      title: s.title,
+      price: s.price,
+      desc: s.desc,
+    })),
+  ];
+
+  if (digitalBasePrice > 0) {
+    finalServices.push({
+      id: "base",
+      title: "Honorarios Base",
+      price: digitalBasePrice,
+      desc: "Gestión",
+    });
+  }
+
+  try {
+    const proposalData = {
+      freelancerName: user.displayName || "Profesional",
+      freelancerId: user.uid,
+      clientName,
+      whatsapp,
+      portfolioUrl,
+      services: finalServices,
+      total: calculateTotal(),
+      createdAt: new Date(),
+      status: "pending" as const,
+    };
+
+    const finalId = await saveProposalByMode({
+      proposalId: editId || undefined,
+      proposalData,
+      userId: user.uid,
+    });
+
+    router.push(redirectTarget === "view" ? `/p/${finalId}` : "/dashboard");
+  } catch (error) {
+    console.error(error);
+  }
+};
 
   if (initializing) return <div className="min-h-screen bg-dark-900 flex items-center justify-center text-white italic">Iniciando...</div>;
 

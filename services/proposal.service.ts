@@ -12,6 +12,37 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Proposal } from "@/types/proposal";
+import { increment, setDoc } from "firebase/firestore";
+
+export const getReferencePricesByCategory = async (category: string) => {
+  const ref = doc(db, "precios_referencia", category);
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) return [];
+
+  const data = snap.data();
+  return data?.items || [];
+};
+
+export const saveProposalByMode = async ({
+  proposalId,
+  proposalData,
+  userId,
+}: {
+  proposalId?: string;
+  proposalData: Omit<Proposal, "id">;
+  userId: string;
+}): Promise<string> => {
+  if (proposalId) {
+    await setDoc(doc(db, "proposals", proposalId), proposalData);
+    return proposalId;
+  }
+
+  const res = await addDoc(collection(db, "proposals"), proposalData);
+  await updateDoc(doc(db, "users", userId), { usageCount: increment(1) });
+
+  return res.id;
+};
 
 const getComparableTime = (value: Proposal["createdAt"]): number => {
   if (value instanceof Timestamp) {

@@ -67,3 +67,13 @@ export const applyFullDiscountCouponToUser = async (
     couponUsed: couponCode,
   });
 };
+
+export const getUserRole = async (uid: string): Promise<string | null> => {
+  const ref = doc(db, "users", uid);
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) return null;
+
+  const data = snap.data() as AppUser;
+  return data.role || null;
+};
