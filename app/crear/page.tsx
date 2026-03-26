@@ -9,6 +9,10 @@ import {
 import { getUserRole } from "@/services/user.service";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
+import {
+  mapStoredServicesToEditableState,
+  mapEditableStateToStoredServices,
+} from "@/utils/proposal-tansform";
 
 const CATEGORIES = [
   { id: "electricista", label: "Electricidad", icon: "⚡" },
@@ -100,41 +104,11 @@ function CreateQuoteContent() {
       setWhatsapp(data.whatsapp || "");
       setPortfolioUrl(data.portfolioUrl || "");
 
-      const items: SelectedItem[] = [];
-      const manual: DigitalService[] = [];
-      let basePrice = 0;
+            const editableState = mapStoredServicesToEditableState(data.services || []);
 
-      (data.services || []).forEach((s) => {
-        if (s.id === "base") {
-          basePrice = s.price;
-        } else if (s.desc?.includes("Rubro:")) {
-          const titlePart = s.title || "";
-          const parts = titlePart.split("x ");
-          const qty = parts.length > 1 ? parseInt(parts[0], 10) : 1;
-          const task = parts.length > 1 ? parts[1] : titlePart;
-
-          items.push({
-            id: s.id,
-            task,
-            qty,
-            price: s.price / qty,
-            customPrice: s.price / qty,
-            unit: s.desc.split("Unidad: ")[1]?.split(" - ")[0] || "u",
-            category: s.desc.split("Rubro: ")[1] || "digital",
-          });
-        } else {
-          manual.push({
-            id: s.id,
-            title: s.title || "",
-            price: s.price,
-            desc: s.desc || "",
-          });
-        }
-      });
-
-      setDigitalBasePrice(basePrice);
-      setSelectedItems(items);
-      setDigitalServices(manual);
+      setDigitalBasePrice(editableState.digitalBasePrice);
+      setSelectedItems(editableState.selectedItems);
+      setDigitalServices(editableState.digitalServices);
     } catch (error) {
       console.error(error);
     }
@@ -200,29 +174,11 @@ function CreateQuoteContent() {
   e.preventDefault();
   if (!user) return;
 
-  const finalServices = [
-    ...selectedItems.map((i) => ({
-      id: i.id,
-      title: `${i.qty}x ${i.task}`,
-      price: i.customPrice * i.qty,
-      desc: `Unidad: ${i.unit} - Rubro: ${i.category}`,
-    })),
-    ...digitalServices.map((s) => ({
-      id: s.id,
-      title: s.title,
-      price: s.price,
-      desc: s.desc,
-    })),
-  ];
-
-  if (digitalBasePrice > 0) {
-    finalServices.push({
-      id: "base",
-      title: "Honorarios Base",
-      price: digitalBasePrice,
-      desc: "Gestión",
-    });
-  }
+    const finalServices = mapEditableStateToStoredServices({
+    selectedItems,
+    digitalServices,
+    digitalBasePrice,
+  });
 
   try {
     const proposalData = {

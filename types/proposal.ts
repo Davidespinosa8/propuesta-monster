@@ -11,6 +11,8 @@ export interface ProposalService {
   customPrice?: number;
   description?: string;
   type?: string;
+  task?: string;
+  kind?: "reference" | "manual" | "base";
 }
 
 export interface Proposal {
