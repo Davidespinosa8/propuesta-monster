@@ -2,49 +2,32 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { db } from "@/lib/firebase";
-import { 
-  collection, query, where, getDocs, Timestamp, 
-  deleteDoc, doc, getDoc, updateDoc, increment 
-} from "firebase/firestore";
+import { Timestamp } from "firebase/firestore";
+import {
+  getProposalsByFreelancer,
+  deleteProposalById,
+} from "@/services/proposal.service";
+import { getUserPlanData } from "@/services/user.service";
+import type { Proposal } from "@/types/proposal";
 import Link from "next/link";
 import UserProfile from "@/components/UserProfile";
-import ContactoForm from "@/components/ContactoForm"; 
+import ContactoForm from "@/components/ContactoForm";
+import { applyCoupon } from "@/services/coupon.service";
 
-// --- CONFIGURACIÓN ---
 const FREE_LIMIT = 6;
 
-interface Proposal {
-  id: string;
-  clientName: string;
-  total: number;
-  createdAt: Timestamp;
-  viewedAt?: Timestamp; 
-  freelancerId: string;
-}
-
-const applyCoupon = async (userId: string, couponCode: string) => {
-  try {
-    const code = couponCode.trim().toUpperCase();
-    const couponRef = doc(db, "coupons", code);
-    const couponSnap = await getDoc(couponRef);
-    if (!couponSnap.exists()) throw new Error("El cupón no existe");
-    const couponData = couponSnap.data();
-    if (!couponData.active) throw new Error("El cupón ya no está activo");
-    if (couponData.limit && (couponData.uses || 0) >= couponData.limit) throw new Error("Límite de usos alcanzado");
-
-    if (couponData.discount === 100) {
-      const userRef = doc(db, "users", userId);
-      await updateDoc(userRef, { plan: "pro", couponUsed: code });
-      await updateDoc(couponRef, { uses: increment(1) });
-      return { success: true, message: "¡Felicidades! Ya sos PRO 🚀" };
-    }
-    return { success: false, message: "Cupón válido para descuento", discount: couponData.discount };
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Error desconocido";
-    return { success: false, message: errorMessage };
+const formatProposalDate = (createdAt: Proposal["createdAt"]) => {
+  if (createdAt instanceof Timestamp) {
+    return createdAt.toDate().toLocaleDateString();
   }
+
+  if (createdAt instanceof Date) {
+    return createdAt.toLocaleDateString();
+  }
+
+  return "";
 };
+
 
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
@@ -68,48 +51,57 @@ export default function Dashboard() {
   }, [authLoading, user, router]);
 
   useEffect(() => {
-    if (!user) return;
-    const fetchData = async () => {
-      try {
-        const q = query(collection(db, "proposals"), where("freelancerId", "==", user.uid));
-        const snap = await getDocs(q);
-        const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Proposal));
-        docs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-        setProposals(docs);
+  if (!user) return;
 
-        const userSnap = await getDoc(doc(db, "users", user.uid));
-        if (userSnap.exists()) {
-            const userData = userSnap.data();
-            setUserPlan(userData.plan || 'free');
-            setUsageCount(userData.usageCount || 0);
-        }
-      } catch (error) { console.error(error); } finally { setDataLoading(false); }
-    };
-    fetchData();
-  }, [user]);
+  const fetchData = async () => {
+    try {
+      const proposalsData = await getProposalsByFreelancer(user.uid);
+      setProposals(proposalsData);
 
-  const handleDelete = async (id: string) => {
-    if (confirm("¿Eliminar presupuesto? El crédito no se recupera.")) {
-      try {
-        await deleteDoc(doc(db, "proposals", id));
-        setProposals(prev => prev.filter(p => p.id !== id));
-      } catch (e) { console.error(e); }
+      const userPlanData = await getUserPlanData(user.uid);
+      setUserPlan(userPlanData.plan);
+      setUsageCount(userPlanData.usageCount);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setDataLoading(false);
     }
   };
 
-  const handleBuyPro = async () => {
-    if(!user) return;
-    setIsProcessing(true);
+  fetchData();
+}, [user]);
+
+  const handleDelete = async (id: string) => {
+  if (!user) return;
+
+  if (confirm("¿Eliminar presupuesto? El crédito no se recupera.")) {
     try {
-        const res = await fetch('/api/checkout', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: user.uid, userEmail: user.email })
-        });
-        const data = await res.json();
-        if (data.url) window.location.href = data.url; 
-    } catch (e) { alert("Error al conectar con Mercado Pago"); } 
-    finally { setIsProcessing(false); }
+      await deleteProposalById(id);
+      setProposals((prev) => prev.filter((p) => p.id !== id));
+    } catch (e) {
+      console.error(e);
+    }
+  }
+};
+
+    const handleBuyPro = async () => {
+    if (!user) return;
+    setIsProcessing(true);
+
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.uid, userEmail: user.email }),
+      });
+
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+    } catch {
+      alert("Error al conectar con Mercado Pago");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleCouponSubmit = async () => {
@@ -223,7 +215,7 @@ export default function Dashboard() {
                       
                       <div>
                         <h3 className="font-bold text-lg group-hover:text-primary-DEFAULT transition-colors">{p.clientName}</h3>
-                        <p className="text-[10px] text-gray-500 uppercase">{p.createdAt?.toDate().toLocaleDateString()}</p>
+                        <p className="text-[10px] text-gray-500 uppercase">{formatProposalDate(p.createdAt)}</p>
                       </div>
                     </div>
 

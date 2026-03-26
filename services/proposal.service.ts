@@ -81,3 +81,11 @@ export const deleteProposalById = async (id: string) => {
   const ref = doc(db, "proposals", id);
   await deleteDoc(ref);
 };
+
+export const deleteProposalAndReturnUpdatedList = async (
+  proposalId: string,
+  freelancerId: string
+): Promise<Proposal[]> => {
+  await deleteProposalById(proposalId);
+  return getProposalsByFreelancer(freelancerId);
+};
