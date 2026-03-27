@@ -13,6 +13,8 @@ import {
   mapStoredServicesToEditableState,
   mapEditableStateToStoredServices,
 } from "@/utils/proposal-tansform";
+import CategorySelector from "@/components/crear/CategorySelector";
+import ManualItemPanel from "@/components/crear/ManualItemPanel";
 
 const CATEGORIES = [
   { id: "electricista", label: "Electricidad", icon: "⚡" },
@@ -226,13 +228,11 @@ function CreateQuoteContent() {
             {editId ? '✏️ Editar Presupuesto' : duplicateId ? '📑 Duplicar Presupuesto' : '➕ Nuevo Presupuesto'}
           </h2>
 
-          <div className="grid grid-cols-3 md:flex gap-2">
-            {CATEGORIES.map(cat => (
-              <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`px-4 py-3 rounded-xl border text-[14px] font-black uppercase tracking-tighter transition-all ${activeCategory === cat.id ? "bg-white text-black border-white" : "bg-dark-800/50 text-gray-400 border-white/5"}`}>
-                {cat.icon} {cat.label}
-              </button>
-            ))}
-          </div>
+          <CategorySelector
+            categories={CATEGORIES}
+            activeCategory={activeCategory}
+            onSelect={setActiveCategory}
+          />
 
           {/* CONTENEDOR DE LISTA CON BOTÓN FIJO */}
           <div className="bg-dark-800/50 p-6 rounded-2xl border border-white/5 h-150 flex flex-col relative overflow-hidden">
@@ -255,25 +255,16 @@ function CreateQuoteContent() {
 
             {/* PANEL FIJO INFERIOR */}
             <div className="absolute bottom-0 left-0 w-full p-4 bg-dark-800 border-t border-white/5 z-20">
-              {!isAddingManual ? (
-                <button 
-                  onClick={() => setIsAddingManual(true)}
-                  className="w-full py-4 border-2 border-dashed border-white/10 rounded-xl text-gray-500 hover:text-white hover:border-primary-DEFAULT transition-all font-black text-[10px] uppercase tracking-widest bg-dark-900/50"
-                >
-                  + ¿No encontrás el trabajo? Agregalo manual
-                </button>
-              ) : (
-                <div className="bg-dark-900 p-4 rounded-xl border border-primary-DEFAULT animate-in slide-in-from-bottom-2 shadow-2xl">
-                  <div className="space-y-3">
-                    <input autoFocus placeholder="Ej: Pintura de rejas..." value={manualTask} onChange={e => setManualTask(e.target.value)} className="w-full bg-dark-800 border border-white/10 rounded-lg p-3 text-white text-sm outline-none" />
-                    <div className="flex gap-2">
-                      <input type="number" placeholder="Precio $" value={manualPrice || ""} onChange={e => setManualPrice(Number(e.target.value))} className="flex-1 bg-dark-800 border border-white/10 rounded-lg p-3 text-white text-sm outline-none" />
-                      <button type="button" onClick={addManualToBudget} className="px-4 bg-primary-DEFAULT text-black font-black rounded-lg text-xs uppercase">Sumar</button>
-                      <button type="button" onClick={() => setIsAddingManual(false)} className="px-4 bg-white/5 text-gray-400 font-black rounded-lg text-xs uppercase">✕</button>
-                    </div>
-                  </div>
-                </div>
-              )}
+              <ManualItemPanel
+                isAddingManual={isAddingManual}
+                manualTask={manualTask}
+                manualPrice={manualPrice}
+                onStartAdd={() => setIsAddingManual(true)}
+                onCancel={() => setIsAddingManual(false)}
+                onTaskChange={setManualTask}
+                onPriceChange={setManualPrice}
+                onAdd={addManualToBudget}
+              />
             </div>
           </div>
         </div>
