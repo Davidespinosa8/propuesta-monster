@@ -17,6 +17,7 @@ import CategorySelector from "@/components/crear/CategorySelector";
 import ManualItemPanel from "@/components/crear/ManualItemPanel";
 import BudgetActionsPanel from "@/components/crear/BudgetActionsPanel";
 import ReferenceItemsList from "@/components/crear/ReferenceItemsList";
+import SelectedItemsTicket from "@/components/crear/SelectedItemsTicket";
 
 const CATEGORIES = [
   { id: "electricista", label: "Electricidad", icon: "⚡" },
@@ -262,36 +263,27 @@ function CreateQuoteContent() {
         </div>
 
         {/* TICKET DE TRABAJO */}
+                
         <div className="lg:col-span-5">
-          <form onSubmit={saveToFirebase} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 sticky top-8">
-            <h3 className="text-xl font-black text-white mb-6 uppercase italic border-b border-white/10 pb-4">Ticket de Trabajo</h3>
-            <div className="space-y-3 mb-6">
-              <input required placeholder="Nombre del Cliente" value={clientName} onChange={e => setClientName(e.target.value)} className="w-full bg-dark-900 border border-white/10 rounded-xl p-4 text-white outline-none focus:border-white/20" />
-              <input required placeholder="WhatsApp" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className="w-full bg-dark-900 border border-white/10 rounded-xl p-4 text-white outline-none focus:border-white/20" />
-              <input placeholder="Link Portafolio" value={portfolioUrl} onChange={e => setPortfolioUrl(e.target.value)} className="w-full bg-dark-900 border border-white/10 rounded-xl p-4 text-white outline-none focus:border-white/20" />
-            </div>
-
-            <div className="max-h-60 overflow-y-auto space-y-2 mb-6 pr-2 custom-scrollbar">
-              {selectedItems.map(item => (
-                <div key={item.id} className="bg-dark-900 p-3 rounded-xl border border-white/5 flex justify-between items-center group">
-                  <div className="flex-1">
-                    <p className="text-xs font-bold text-white uppercase">{item.task}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <input type="number" value={item.qty} onChange={e => updateQty(item.id, Number(e.target.value))} className="w-12 bg-dark-800 text-center text-white rounded p-1 text-xs font-mono" />
-                      <span className="text-gray-600 text-[10px]">x</span>
-                      <input type="number" value={item.customPrice} onChange={e => updateCustomPrice(item.id, Number(e.target.value))} className="w-20 bg-dark-800 text-white rounded p-1 text-xs font-mono" />
-                    </div>
-                  </div>
-                  <button type="button" onClick={() => updateQty(item.id, 0)} className="text-gray-600 hover:text-red-500 transition-colors ml-2 text-xl">✕</button>
-                </div>
-              ))}
-            </div>
-
-            <BudgetActionsPanel
-              total={calculateTotal()}
-              onSaveDraft={() => setRedirectTarget("dashboard")}
-              onGenerate={() => setRedirectTarget("view")}
-            />
+          <form onSubmit={saveToFirebase}>
+            <SelectedItemsTicket
+              clientName={clientName}
+              whatsapp={whatsapp}
+              portfolioUrl={portfolioUrl}
+              selectedItems={selectedItems}
+              onClientNameChange={setClientName}
+              onWhatsappChange={setWhatsapp}
+              onPortfolioUrlChange={setPortfolioUrl}
+              onQtyChange={updateQty}
+              onCustomPriceChange={updateCustomPrice}
+              onRemoveItem={(id) => updateQty(id, 0)}
+            >
+              <BudgetActionsPanel
+                total={calculateTotal()}
+                onSaveDraft={() => setRedirectTarget("dashboard")}
+                onGenerate={() => setRedirectTarget("view")}
+              />
+            </SelectedItemsTicket>
           </form>
         </div>
       </div>
