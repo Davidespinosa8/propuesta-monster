@@ -12,9 +12,11 @@ import Link from "next/link";
 import {
   mapStoredServicesToEditableState,
   mapEditableStateToStoredServices,
-} from "@/utils/proposal-tansform";
+} from "@/utils/proposal-transform";
 import CategorySelector from "@/components/crear/CategorySelector";
 import ManualItemPanel from "@/components/crear/ManualItemPanel";
+import BudgetActionsPanel from "@/components/crear/BudgetActionsPanel";
+import ReferenceItemsList from "@/components/crear/ReferenceItemsList";
 
 const CATEGORIES = [
   { id: "electricista", label: "Electricidad", icon: "⚡" },
@@ -234,24 +236,14 @@ function CreateQuoteContent() {
             onSelect={setActiveCategory}
           />
 
-          {/* CONTENEDOR DE LISTA CON BOTÓN FIJO */}
           <div className="bg-dark-800/50 p-6 rounded-2xl border border-white/5 h-150 flex flex-col relative overflow-hidden">
-            <input type="text" placeholder="Buscar trabajo..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full bg-dark-900 border border-white/10 rounded-xl p-4 text-white mb-4 outline-none focus:border-primary-DEFAULT z-10" />
-            
-            <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar pb-24">
-              {refItems.filter(i => i.task.toLowerCase().includes(searchTerm.toLowerCase())).map(item => {
-                const qty = selectedItems.find(si => si.id === item.id)?.qty || 0;
-                return (
-                  <button key={item.id} onClick={() => addToBudget(item)} className={`w-full text-left p-4 rounded-xl border flex justify-between items-center transition-all ${qty > 0 ? "bg-primary-DEFAULT/10 border-primary-DEFAULT" : "bg-dark-900/50 border-transparent hover:border-white/10"}`}>
-                    <div>
-                      <p className="font-bold text-white text-sm">{item.task} {qty > 0 && <span className="text-primary-DEFAULT ml-2">x{qty}</span>}</p>
-                      <p className="text-[10px] text-gray-500 uppercase">{item.unit}</p>
-                    </div>
-                    <p className="font-black text-accent-DEFAULT">${item.price.toLocaleString()}</p>
-                  </button>
-                )
-              })}
-            </div>
+            <ReferenceItemsList
+              searchTerm={searchTerm}
+              refItems={refItems}
+              selectedItems={selectedItems}
+              onSearchChange={setSearchTerm}
+              onAddItem={addToBudget}
+            />
 
             {/* PANEL FIJO INFERIOR */}
             <div className="absolute bottom-0 left-0 w-full p-4 bg-dark-800 border-t border-white/5 z-20">
@@ -295,15 +287,11 @@ function CreateQuoteContent() {
               ))}
             </div>
 
-            <div className="border-t border-white/10 pt-4 mb-6 flex justify-between items-end">
-              <span className="text-gray-500 font-bold uppercase text-[10px] tracking-widest">Total Estimado</span>
-              <span className="text-3xl font-black text-white tracking-tighter">${calculateTotal().toLocaleString()}</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <button type="submit" onClick={() => setRedirectTarget('dashboard')} className="py-4 bg-white/5 border border-white/10 text-white font-black rounded-xl text-[10px] uppercase hover:bg-white/10 transition-all">💾 Guardar</button>
-              <button type="submit" onClick={() => setRedirectTarget('view')} className="py-4 bg-white text-black font-black rounded-xl text-[10px] uppercase hover:scale-[1.02] transition-all active:scale-95">🚀 Generar</button>
-            </div>
+            <BudgetActionsPanel
+              total={calculateTotal()}
+              onSaveDraft={() => setRedirectTarget("dashboard")}
+              onGenerate={() => setRedirectTarget("view")}
+            />
           </form>
         </div>
       </div>
