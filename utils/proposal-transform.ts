@@ -1,21 +1,8 @@
 import { ProposalService } from "@/types/proposal";
-
-export interface EditableSelectedItem {
-  id: string;
-  task: string;
-  unit: string;
-  price: number;
-  qty: number;
-  customPrice: number;
-  category: string;
-}
-
-export interface EditableDigitalService {
-  id: string;
-  title: string;
-  price: number;
-  desc: string;
-}
+import type {
+  SelectedItem as EditableSelectedItem,
+  DigitalService as EditableDigitalService,
+} from "@/types/create-proposal";
 
 export const mapStoredServicesToEditableState = (
   services: ProposalService[]

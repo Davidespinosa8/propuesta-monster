@@ -18,6 +18,11 @@ import ManualItemPanel from "@/components/crear/ManualItemPanel";
 import BudgetActionsPanel from "@/components/crear/BudgetActionsPanel";
 import ReferenceItemsList from "@/components/crear/ReferenceItemsList";
 import SelectedItemsTicket from "@/components/crear/SelectedItemsTicket";
+import type {
+  RefItem,
+  SelectedItem,
+  DigitalService,
+} from "@/types/create-proposal";
 
 const CATEGORIES = [
   { id: "electricista", label: "Electricidad", icon: "⚡" },
@@ -28,18 +33,6 @@ const CATEGORIES = [
   { id: "digital", label: "Digital / Diseño", icon: "💻" },
 ];
 
-interface RefItem { id: string; task: string; unit: string; price: number; }
-interface SelectedItem extends RefItem {
-  qty: number;
-  customPrice: number;
-  category: string;
-}
-interface DigitalService {
-  id: string;
-  title: string;
-  price: number;
-  desc: string;
-}
 
 function CreateQuoteContent() {
   const router = useRouter();

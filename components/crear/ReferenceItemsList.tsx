@@ -1,19 +1,4 @@
-interface RefItem {
-  id: string;
-  task: string;
-  unit: string;
-  price: number;
-}
-
-interface SelectedItem {
-  id: string;
-  task: string;
-  unit: string;
-  price: number;
-  qty: number;
-  customPrice: number;
-  category: string;
-}
+import type { RefItem, SelectedItem } from "@/types/create-proposal";
 
 interface ReferenceItemsListProps {
   searchTerm: string;
