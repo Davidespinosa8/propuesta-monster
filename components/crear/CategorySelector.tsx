@@ -5,7 +5,7 @@ interface Category {
 }
 
 interface CategorySelectorProps {
-  categories: Category[];
+  categories: readonly Category[];
   activeCategory: string;
   onSelect: (categoryId: string) => void;
 }
