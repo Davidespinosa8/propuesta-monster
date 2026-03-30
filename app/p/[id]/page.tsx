@@ -2,27 +2,17 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { db } from "@/lib/firebase";
-import { doc, getDoc, updateDoc, serverTimestamp, Timestamp } from "firebase/firestore";
+import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { useAuth } from "@/context/AuthContext";
 import ProposalView from "@/components/ProposalView";
 import Link from "next/link";
+import type { Proposal } from "@/types/proposal";
 
-interface ProposalData {
-  id: string;
-  clientName: string;
-  jobTitle?: string;
-  items: Array<{ description: string; price: number; type: string }>;
-  total: number;
-  status: string;
-  createdAt: Timestamp;
-  freelancerId: string;
-  viewedAt?: Timestamp;
-}
 
 export default function ProposalPage() {
   const { id } = useParams();
   const { user } = useAuth();
-  const [proposal, setProposal] = useState<ProposalData | null>(null);
+  const [proposal, setProposal] = useState<Proposal | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -34,9 +24,9 @@ export default function ProposalPage() {
         
         if (snap.exists()) {
           // Tipado seguro para evitar errores de ID duplicado
-          const rawData = snap.data() as Omit<ProposalData, 'id'>;
+          const rawData = snap.data() as Omit<Proposal, 'id'>;
           
-          const fullData: ProposalData = { 
+          const fullData: Proposal = { 
             id: snap.id, 
             ...rawData 
           };
@@ -45,9 +35,9 @@ export default function ProposalPage() {
 
           // Solo marcamos "Visto" si NO es el dueño quien lo mira
           if (user?.uid !== fullData.freelancerId && !fullData.viewedAt) {
-             await updateDoc(docRef, {
-               viewedAt: serverTimestamp()
-             });
+            await updateDoc(docRef, {
+              viewedAt: serverTimestamp()
+            });
           }
         }
       } catch (error) {
