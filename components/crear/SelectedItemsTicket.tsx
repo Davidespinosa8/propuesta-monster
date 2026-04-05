@@ -11,7 +11,6 @@ interface SelectedItemsTicketProps {
   onClientNameChange: (value: string) => void;
   onWhatsappChange: (value: string) => void;
   onPortfolioUrlChange: (value: string) => void;
-  onCurrencyChange: (value: "ARS" | "USD") => void;
   onCountryCodeChange: (value: string) => void;
   onQtyChange: (id: string, qty: number) => void;
   onCustomPriceChange: (id: string, price: number) => void;
@@ -29,7 +28,6 @@ export default function SelectedItemsTicket({
   onClientNameChange,
   onWhatsappChange,
   onPortfolioUrlChange,
-  onCurrencyChange,
   onCountryCodeChange,
   onQtyChange,
   onCustomPriceChange,
@@ -64,15 +62,10 @@ export default function SelectedItemsTicket({
             className="w-full bg-dark-900 border border-white/10 rounded-xl p-4 text-white outline-none focus:border-white/20"
           />
 
-                  <div className="grid grid-cols-[1fr_160px] gap-2">
-          <select
-            value={currency}
-            onChange={(e) => onCurrencyChange(e.target.value as "ARS" | "USD")}
-            className="w-full bg-dark-900 border border-white/10 rounded-xl p-4 text-white outline-none"
-          >
-            <option value="ARS">Pesos 🇦🇷 (ARS)</option>
-            <option value="USD">USD 💵</option>
-          </select>
+        <div className="space-y-2">
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+            País del cliente
+          </p>
 
           <select
             value={countryCode}
@@ -81,7 +74,7 @@ export default function SelectedItemsTicket({
           >
             {COUNTRY_OPTIONS.map((country) => (
               <option key={country.code} value={country.code}>
-                {country.flag} +{country.code}
+                {country.flag} {country.label} (+{country.code})
               </option>
             ))}
           </select>

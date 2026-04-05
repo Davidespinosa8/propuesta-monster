@@ -297,7 +297,6 @@ function CreateQuoteContent() {
                 onClientNameChange={setClientName}
                 onWhatsappChange={setWhatsapp}
                 onPortfolioUrlChange={setPortfolioUrl}
-                onCurrencyChange={setCurrency}
                 onCountryCodeChange={setCountryCode}
                 onQtyChange={updateQty}
                 onCustomPriceChange={updateCustomPrice}
