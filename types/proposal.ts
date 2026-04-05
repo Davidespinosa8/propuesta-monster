@@ -29,4 +29,6 @@ export interface Proposal {
   createdAt: Timestamp | Date;
   viewedAt?: Timestamp;
   jobTitle?: string;
+  currency?: "ARS" | "USD";
+  countryCode?: string;
 }

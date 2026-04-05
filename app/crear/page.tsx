@@ -24,7 +24,9 @@ import type {
   DigitalService,
 } from "@/types/create-proposal";
 import { CREATE_PROPOSAL_CATEGORIES } from "@/constants/create-proposal";
+import CreateSetupModal from "@/components/crear/CreateSetupModal";
 
+const EXCHANGE_RATE = 1400;
 
 function CreateQuoteContent() {
   const router = useRouter();
@@ -41,14 +43,17 @@ function CreateQuoteContent() {
 
   const [clientName, setClientName] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
-  const [portfolioUrl, setPortfolioUrl] = useState(""); 
+  const [portfolioUrl, setPortfolioUrl] = useState("");
+  const [currency, setCurrency] = useState<"ARS" | "USD">("ARS");
+  const [countryCode, setCountryCode] = useState("54");
+  const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
   
-  const [refItems, setRefItems] = useState<RefItem[]>([]); 
-  const [searchTerm, setSearchTerm] = useState(""); 
-  const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]); 
+  const [refItems, setRefItems] = useState<RefItem[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
 
   const [digitalBasePrice, setDigitalBasePrice] = useState(0);
-  const [digitalServices, setDigitalServices] = useState<DigitalService[]>([]); 
+  const [digitalServices, setDigitalServices] = useState<DigitalService[]>([]);
 
   // ESTADOS PARA ACCIÓN MANUAL
   const [isAddingManual, setIsAddingManual] = useState(false);
@@ -56,72 +61,91 @@ function CreateQuoteContent() {
   const [manualPrice, setManualPrice] = useState(0);
 
   useEffect(() => {
-  if (!loading && !user) {
-    router.push("/login");
-    return;
-  }
+    if (!loading && !user) {
+      router.push("/login");
+      return;
+    }
 
-  const fetchUserRoleData = async () => {
-    if (!user) return;
+    const fetchUserRoleData = async () => {
+      if (!user) return;
 
-    try {
-      const role = await getUserRole(user.uid);
-      if (role && CREATE_PROPOSAL_CATEGORIES.some((c) => c.id === role)) {
-        setActiveCategory(role);
+      try {
+        const role = await getUserRole(user.uid);
+        if (role && CREATE_PROPOSAL_CATEGORIES.some((c) => c.id === role)) {
+          setActiveCategory(role);
+        }
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setInitializing(false);
       }
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setInitializing(false);
-    }
-  };
+    };
 
-  if (user) {
-    fetchUserRoleData();
-  }
-}, [user, loading, router]);
+    if (user) {
+      fetchUserRoleData();
+    }
+  }, [user, loading, router]);
 
   useEffect(() => {
-  const loadProposal = async () => {
-    const id = editId || duplicateId;
-    if (!id || initializing) return;
+    const isNewProposal = !editId && !duplicateId;
 
-    try {
-      const data = await getProposalById(id);
-      if (!data) return;
-
-      setClientName(data.clientName || "");
-      setWhatsapp(data.whatsapp || "");
-      setPortfolioUrl(data.portfolioUrl || "");
-
-            const editableState = mapStoredServicesToEditableState(data.services || []);
-
-      setDigitalBasePrice(editableState.digitalBasePrice);
-      setSelectedItems(editableState.selectedItems);
-      setDigitalServices(editableState.digitalServices);
-    } catch (error) {
-      console.error(error);
+    if (!initializing && isNewProposal) {
+      setIsSetupModalOpen(true);
     }
-  };
-
-  loadProposal();
-}, [editId, duplicateId, initializing]);
+  }, [initializing, editId, duplicateId]);
 
   useEffect(() => {
-  const fetchPrices = async () => {
-    try {
-      setRefItems([]);
-      const items = await getReferencePricesByCategory(activeCategory);
-      setRefItems(items);
-    } catch (error) {
-      console.error(error);
-    }
-  };
+    const loadProposal = async () => {
+      const id = editId || duplicateId;
+      if (!id || initializing) return;
 
-  if (!initializing) {
-    fetchPrices();
-  }
-}, [activeCategory, initializing]);
+      try {
+        const data = await getProposalById(id);
+        if (!data) return;
+
+        setClientName(data.clientName || "");
+        setWhatsapp(data.whatsapp || "");
+        setPortfolioUrl(data.portfolioUrl || "");
+        setCurrency(data.currency || "ARS");
+        setCountryCode(data.countryCode || "54");
+
+        const editableState = mapStoredServicesToEditableState(data.services || []);
+
+        setDigitalBasePrice(editableState.digitalBasePrice);
+        setSelectedItems(editableState.selectedItems);
+        setDigitalServices(editableState.digitalServices);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    loadProposal();
+  }, [editId, duplicateId, initializing]);
+
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        setRefItems([]);
+        const items = (await getReferencePricesByCategory(activeCategory)) as RefItem[];
+
+        const convertedItems: RefItem[] = items.map((item: RefItem) => ({
+          ...item,
+          price:
+            currency === "USD"
+              ? Number((item.price / EXCHANGE_RATE).toFixed(2))
+              : item.price,
+        }));
+
+        setRefItems(convertedItems);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    if (!initializing) {
+      fetchPrices();
+    }
+  }, [activeCategory, initializing, currency]);
 
   const addToBudget = (item: RefItem) => {
     const existing = selectedItems.find(i => i.id === item.id);
@@ -161,118 +185,135 @@ function CreateQuoteContent() {
   };
 
   const saveToFirebase = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!user) return;
+    e.preventDefault();
+    if (!user) return;
 
     const finalServices = mapEditableStateToStoredServices({
-    selectedItems,
-    digitalServices,
-    digitalBasePrice,
-  });
-
-  try {
-    const proposalData = {
-      freelancerName: user.displayName || "Profesional",
-      freelancerId: user.uid,
-      clientName,
-      whatsapp,
-      portfolioUrl,
-      services: finalServices,
-      total: calculateTotal(),
-      createdAt: new Date(),
-      status: "pending" as const,
-    };
-
-    const finalId = await saveProposalByMode({
-      proposalId: editId || undefined,
-      proposalData,
-      userId: user.uid,
+      selectedItems,
+      digitalServices,
+      digitalBasePrice,
     });
 
-    router.push(redirectTarget === "view" ? `/p/${finalId}` : "/dashboard");
-  } catch (error) {
-    console.error(error);
-  }
-};
+    try {
+      const proposalData = {
+        freelancerName: user.displayName || "Profesional",
+        freelancerId: user.uid,
+        clientName,
+        whatsapp,
+        portfolioUrl,
+        currency,
+        countryCode,
+        services: finalServices,
+        total: calculateTotal(),
+        createdAt: new Date(),
+        status: "pending" as const,
+      };
+
+      const finalId = await saveProposalByMode({
+        proposalId: editId || undefined,
+        proposalData,
+        userId: user.uid,
+      });
+
+      router.push(redirectTarget === "view" ? `/p/${finalId}` : "/dashboard");
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   if (initializing) return <div className="min-h-screen bg-dark-900 flex items-center justify-center text-white italic">Iniciando...</div>;
 
   return (
-    <main className="min-h-screen bg-dark-900 p-4 md:p-8 relative">
-      {/* MENÚ LATERAL */}
-      <div className={`fixed top-0 right-0 h-full bg-dark-800 border-l border-white/10 transition-transform duration-500 z-50 ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'} w-72 shadow-2xl`}>
-        <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="absolute top-1/2 -left-10 bg-dark-800 p-3 rounded-l-2xl text-white shadow-xl">
+    <>
+      <CreateSetupModal
+        isOpen={isSetupModalOpen}
+        currency={currency}
+        countryCode={countryCode}
+        onCurrencyChange={setCurrency}
+        onCountryCodeChange={setCountryCode}
+        onContinue={() => setIsSetupModalOpen(false)}
+      />
+
+      <main className="min-h-screen bg-dark-900 p-4 md:p-8 relative">
+        {/* MENÚ LATERAL */}
+        <div className={`fixed top-0 right-0 h-full bg-dark-800 border-l border-white/10 transition-transform duration-500 z-50 ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'} w-72 shadow-2xl`}>
+          <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="absolute top-1/2 -left-10 bg-dark-800 p-3 rounded-l-2xl text-white shadow-xl">
             {isMenuOpen ? '〉' : '〈'}
-        </button>
-        <nav className="p-10 space-y-8 mt-20">
-          <Link href="/dashboard" className="block text-gray-400 hover:text-white font-black text-xs uppercase italic">📊 Dashboard</Link>
-          <Link href="/" className="block text-gray-400 hover:text-white font-black text-xs uppercase italic">🏠 Home</Link>
-        </nav>
-      </div>
+          </button>
+          <nav className="p-10 space-y-8 mt-20">
+            <Link href="/dashboard" className="block text-gray-400 hover:text-white font-black text-xs uppercase italic">📊 Dashboard</Link>
+            <Link href="/" className="block text-gray-400 hover:text-white font-black text-xs uppercase italic">🏠 Home</Link>
+          </nav>
+        </div>
 
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-7 space-y-6">
-          <h2 className="text-3xl font-black text-white uppercase italic">
-            {editId ? '✏️ Editar Presupuesto' : duplicateId ? '📑 Duplicar Presupuesto' : '➕ Nuevo Presupuesto'}
-          </h2>
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="lg:col-span-7 space-y-6">
+            <h2 className="text-3xl font-black text-white uppercase italic">
+              {editId ? '✏️ Editar Presupuesto' : duplicateId ? '📑 Duplicar Presupuesto' : '➕ Nuevo Presupuesto'}
+            </h2>
 
-          <CategorySelector
-            categories={CREATE_PROPOSAL_CATEGORIES}
-            activeCategory={activeCategory}
-            onSelect={setActiveCategory}
-          />
-
-          <div className="bg-dark-800/50 p-6 rounded-2xl border border-white/5 h-150 flex flex-col relative overflow-hidden">
-            <ReferenceItemsList
-              searchTerm={searchTerm}
-              refItems={refItems}
-              selectedItems={selectedItems}
-              onSearchChange={setSearchTerm}
-              onAddItem={addToBudget}
+            <CategorySelector
+              categories={CREATE_PROPOSAL_CATEGORIES}
+              activeCategory={activeCategory}
+              onSelect={setActiveCategory}
             />
 
-            {/* PANEL FIJO INFERIOR */}
-            <div className="absolute bottom-0 left-0 w-full p-4 bg-dark-800 border-t border-white/5 z-20">
-              <ManualItemPanel
-                isAddingManual={isAddingManual}
-                manualTask={manualTask}
-                manualPrice={manualPrice}
-                onStartAdd={() => setIsAddingManual(true)}
-                onCancel={() => setIsAddingManual(false)}
-                onTaskChange={setManualTask}
-                onPriceChange={setManualPrice}
-                onAdd={addManualToBudget}
+            <div className="bg-dark-800/50 p-6 rounded-2xl border border-white/5 h-150 flex flex-col relative overflow-hidden">
+              <ReferenceItemsList
+                searchTerm={searchTerm}
+                refItems={refItems}
+                selectedItems={selectedItems}
+                onSearchChange={setSearchTerm}
+                onAddItem={addToBudget}
               />
+
+              {/* PANEL FIJO INFERIOR */}
+              <div className="absolute bottom-0 left-0 w-full p-4 bg-dark-800 border-t border-white/5 z-20">
+                <ManualItemPanel
+                  isAddingManual={isAddingManual}
+                  manualTask={manualTask}
+                  manualPrice={manualPrice}
+                  onStartAdd={() => setIsAddingManual(true)}
+                  onCancel={() => setIsAddingManual(false)}
+                  onTaskChange={setManualTask}
+                  onPriceChange={setManualPrice}
+                  onAdd={addManualToBudget}
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* TICKET DE TRABAJO */}
+          {/* TICKET DE TRABAJO */}
                 
-        <div className="lg:col-span-5">
-          <form onSubmit={saveToFirebase}>
-            <SelectedItemsTicket
-              clientName={clientName}
-              whatsapp={whatsapp}
-              portfolioUrl={portfolioUrl}
-              selectedItems={selectedItems}
-              onClientNameChange={setClientName}
-              onWhatsappChange={setWhatsapp}
-              onPortfolioUrlChange={setPortfolioUrl}
-              onQtyChange={updateQty}
-              onCustomPriceChange={updateCustomPrice}
-              onRemoveItem={(id) => updateQty(id, 0)}
-            >
-              <BudgetActionsPanel
-                total={calculateTotal()}
-                onSaveDraft={() => setRedirectTarget("dashboard")}
-                onGenerate={() => setRedirectTarget("view")}
-              />
-            </SelectedItemsTicket>
-          </form>
+          <div className="lg:col-span-5">
+            <form onSubmit={saveToFirebase}>
+              <SelectedItemsTicket
+                clientName={clientName}
+                whatsapp={whatsapp}
+                portfolioUrl={portfolioUrl}
+                currency={currency}
+                countryCode={countryCode}
+                selectedItems={selectedItems}
+                onClientNameChange={setClientName}
+                onWhatsappChange={setWhatsapp}
+                onPortfolioUrlChange={setPortfolioUrl}
+                onCurrencyChange={setCurrency}
+                onCountryCodeChange={setCountryCode}
+                onQtyChange={updateQty}
+                onCustomPriceChange={updateCustomPrice}
+                onRemoveItem={(id) => updateQty(id, 0)}
+              >
+                <BudgetActionsPanel
+                  total={calculateTotal()}
+                  onSaveDraft={() => setRedirectTarget("dashboard")}
+                  onGenerate={() => setRedirectTarget("view")}
+                />
+              </SelectedItemsTicket>
+            </form>
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </>
   );
 }
 

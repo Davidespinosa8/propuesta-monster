@@ -7,11 +7,13 @@ import { db } from "@/lib/firebase";
 import { Proposal, ProposalService } from "@/types/proposal";
 import { AppUser } from "@/types/user";
 import { buildWhatsAppUrl } from "@/utils/whatsapp";
+import MessageSuggestions from "@/components/proposal/MessageSuggestions";
 
 export default function ProposalView({ proposal }: { proposal: Proposal }) {
   const { user } = useAuth();
   const [freelancer, setFreelancer] = useState<AppUser | null>(null);
   const [excludedItemIds, setExcludedItemIds] = useState<string[]>([]);
+  const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
 
   const allItems: ProposalService[] = useMemo(() => {
     return proposal.services || proposal.items || [];
@@ -64,14 +66,16 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
       ? proposal.createdAt.toLocaleDateString()
       : new Date().toLocaleDateString();
 
-  const clientMessage = `Hola ${proposal.clientName}, Soy ${
-    freelancer?.businessName || freelancer?.fullName || "el profesional"
-  }. Te paso el presupuesto interactivo para que elijas las opciones: ${shareUrl}`;
 
-  const whatsappLinkOwner = buildWhatsAppUrl(
-    proposal.whatsapp || "",
-    clientMessage
-  );
+  const handleSelectMessage = (message: string) => {
+    const link = buildWhatsAppUrl(
+      proposal.whatsapp || "",
+      message,
+      proposal.countryCode || "54"
+    );
+    setIsMessageModalOpen(false);
+    window.open(link, "_blank");
+  };
 
   const selectedItemsList = selectedItems
     .map((item) => {
@@ -219,21 +223,21 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
             {isOwner ? "Total Presupuestado" : "Total Seleccionado"}
           </p>
           <p className="text-5xl font-black text-white tracking-tighter transition-all duration-300">
-            ${dynamicTotal.toLocaleString()}
+            {proposal.currency === "USD" ? "USD $" : "$"}
+            {dynamicTotal.toLocaleString()}
           </p>
         </div>
 
         {typeof window !== "undefined" &&
           (isOwner ? (
             proposal.whatsapp ? (
-              <a
-                href={whatsappLinkOwner}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
+                onClick={() => setIsMessageModalOpen(true)}
                 className="px-8 py-4 bg-white text-dark-900 font-black rounded-2xl uppercase text-xs hover:scale-105 transition-transform shadow-xl flex items-center gap-2"
               >
                 <span>Enviar a Cliente 📤</span>
-              </a>
+              </button>
             ) : (
               <span className="text-xs text-gray-500 font-bold">
                 Sin teléfono de cliente
@@ -252,6 +256,15 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
             )
           ))}
       </div>
+
+      <MessageSuggestions
+        isOpen={isMessageModalOpen}
+        clientName={proposal.clientName}
+        total={dynamicTotal}
+        shareUrl={shareUrl}
+        onClose={() => setIsMessageModalOpen(false)}
+        onSelectMessage={handleSelectMessage}
+      />
 
       {proposal.portfolioUrl && (
         <div className="p-8 md:p-12 border-t border-white/10 bg-black/20 text-center">
