@@ -2,6 +2,7 @@ interface MessageSuggestionsProps {
   isOpen: boolean;
   clientName: string;
   total: number;
+  currency?: "ARS" | "USD";
   shareUrl: string;
   onClose: () => void;
   onSelectMessage: (message: string) => void;
@@ -11,18 +12,21 @@ export default function MessageSuggestions({
   isOpen,
   clientName,
   total,
+  currency,
   shareUrl,
   onClose,
   onSelectMessage,
 }: MessageSuggestionsProps) {
   if (!isOpen) return null;
 
+  const currencySymbol = currency === "USD" ? "USD $" : "$";
+
   const messages = [
-    `Hola ${clientName}, te dejo el presupuesto del trabajo que vimos.\n\nEl total es de $${total.toLocaleString()}.\n\nPodés verlo acá: ${shareUrl}\n\nCualquier duda lo vemos juntos 👍`,
+    `Hola ${clientName}, te dejo el presupuesto del trabajo que vimos.\n\nEl total es de ${currencySymbol}${total.toLocaleString()}.\n\nPodés verlo acá: ${shareUrl}\n\nCualquier duda lo vemos juntos 👍`,
 
-    `Hola ${clientName}! 👋\n\nYa te armé el presupuesto detallado.\n\nTe lo paso por acá: ${shareUrl}\n\nSi te parece bien, podemos coordinar para avanzar 🚀`,
+    `Hola ${clientName}! 👋\n\nYa te armé el presupuesto detallado por un total de ${currencySymbol}${total.toLocaleString()}.\n\nTe lo paso por acá: ${shareUrl}\n\nSi te parece bien, podemos coordinar para avanzar 🚀`,
 
-    `Hola ${clientName}, te comparto el presupuesto.\n\nPodés revisarlo en este link: ${shareUrl}\n\nEstoy disponible para empezar cuando quieras.\n\nQuedo atento 👍`,
+    `Hola ${clientName}, te comparto el presupuesto.\n\nTotal: ${currencySymbol}${total.toLocaleString()}.\n\nPodés revisarlo en este link: ${shareUrl}\n\nEstoy disponible para empezar cuando quieras.\n\nQuedo atento 👍`,
   ];
 
   return (

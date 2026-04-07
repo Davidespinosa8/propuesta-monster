@@ -9,6 +9,10 @@ import { AppUser } from "@/types/user";
 import { buildWhatsAppUrl } from "@/utils/whatsapp";
 import MessageSuggestions from "@/components/proposal/MessageSuggestions";
 
+const getCurrencySymbol = (currency?: string) => {
+  return currency === "USD" ? "USD $" : "$";
+};
+
 export default function ProposalView({ proposal }: { proposal: Proposal }) {
   const { user } = useAuth();
   const [freelancer, setFreelancer] = useState<AppUser | null>(null);
@@ -77,13 +81,15 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
     window.open(link, "_blank");
   };
 
+  const currencySymbol = getCurrencySymbol(proposal.currency);
+
   const selectedItemsList = selectedItems
     .map((item) => {
-      return `- ${item.title || item.description || "Item"} ($${item.price})`;
+      return `- ${item.title || item.description || "Item"} (${currencySymbol}${item.price})`;
     })
     .join("\n");
 
-  const freelancerMessage = `Hola, acepto el presupuesto por un total de *$${dynamicTotal.toLocaleString()}*.\n\nItems seleccionados:\n${selectedItemsList}\n\n¿Cómo seguimos?`;
+  const freelancerMessage = `Hola, acepto el presupuesto por un total de *${currencySymbol}${dynamicTotal.toLocaleString()}*.\n\nItems seleccionados:\n${selectedItemsList}\n\n¿Cómo seguimos?`;
 
   const whatsappLinkClient = buildWhatsAppUrl(
     freelancer?.phone || "",
@@ -204,7 +210,8 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
                       isSelected ? "text-white" : "text-gray-600"
                     }`}
                   >
-                    ${(item.price || 0).toLocaleString()}
+                    {getCurrencySymbol(proposal.currency)}
+                    {(item.price || 0).toLocaleString()}
                   </p>
                 </div>
               );
@@ -223,7 +230,7 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
             {isOwner ? "Total Presupuestado" : "Total Seleccionado"}
           </p>
           <p className="text-5xl font-black text-white tracking-tighter transition-all duration-300">
-            {proposal.currency === "USD" ? "USD $" : "$"}
+            {getCurrencySymbol(proposal.currency)}
             {dynamicTotal.toLocaleString()}
           </p>
         </div>
@@ -251,7 +258,10 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
                 rel="noopener noreferrer"
                 className="px-8 py-4 bg-green-500 text-white font-black rounded-2xl uppercase text-xs hover:scale-105 transition-transform shadow-[0_0_30px_rgba(34,197,94,0.3)] flex items-center gap-2"
               >
-                <span>Confirmar (${dynamicTotal.toLocaleString()}) 💬</span>
+                <span>
+                  Confirmar ({getCurrencySymbol(proposal.currency)}
+                  {dynamicTotal.toLocaleString()}) 💬
+                </span>
               </a>
             )
           ))}
@@ -261,6 +271,7 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
         isOpen={isMessageModalOpen}
         clientName={proposal.clientName}
         total={dynamicTotal}
+        currency={proposal.currency}
         shareUrl={shareUrl}
         onClose={() => setIsMessageModalOpen(false)}
         onSelectMessage={handleSelectMessage}
