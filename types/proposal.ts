@@ -31,4 +31,7 @@ export interface Proposal {
   jobTitle?: string;
   currency?: "ARS" | "USD";
   countryCode?: string;
+  exchangeRateValue?: number;
+  exchangeRateSource?: string;
+  exchangeRateFetchedAt?: string;
 }

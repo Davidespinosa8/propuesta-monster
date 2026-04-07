@@ -26,8 +26,6 @@ import type {
 import { CREATE_PROPOSAL_CATEGORIES } from "@/constants/create-proposal";
 import CreateSetupModal from "@/components/crear/CreateSetupModal";
 
-const EXCHANGE_RATE = 1400;
-
 function CreateQuoteContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -47,6 +45,11 @@ function CreateQuoteContent() {
   const [currency, setCurrency] = useState<"ARS" | "USD">("ARS");
   const [countryCode, setCountryCode] = useState("54");
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
+  const [exchangeRate, setExchangeRate] = useState(1400);
+  const [exchangeRateSource, setExchangeRateSource] = useState("Fallback");
+  const [exchangeRateFetchedAt, setExchangeRateFetchedAt] = useState(
+    new Date().toISOString()
+  );
   
   const [refItems, setRefItems] = useState<RefItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -95,6 +98,25 @@ function CreateQuoteContent() {
   }, [initializing, editId, duplicateId]);
 
   useEffect(() => {
+    const fetchExchangeRate = async () => {
+      try {
+        const res = await fetch("/api/exchange-rate");
+        const data = await res.json();
+
+        if (data?.rate) {
+          setExchangeRate(data.rate);
+          setExchangeRateSource(data.source || "DolarApi - Blue Venta");
+          setExchangeRateFetchedAt(data.updatedAt || new Date().toISOString());
+        }
+      } catch (error) {
+        console.error("No se pudo cargar la cotización", error);
+      }
+    };
+
+    fetchExchangeRate();
+  }, []);
+
+  useEffect(() => {
     const loadProposal = async () => {
       const id = editId || duplicateId;
       if (!id || initializing) return;
@@ -108,6 +130,16 @@ function CreateQuoteContent() {
         setPortfolioUrl(data.portfolioUrl || "");
         setCurrency(data.currency || "ARS");
         setCountryCode(data.countryCode || "54");
+
+        if (data.exchangeRateValue) {
+          setExchangeRate(data.exchangeRateValue);
+        }
+        if (data.exchangeRateSource) {
+          setExchangeRateSource(data.exchangeRateSource);
+        }
+        if (data.exchangeRateFetchedAt) {
+          setExchangeRateFetchedAt(data.exchangeRateFetchedAt);
+        }
 
         const editableState = mapStoredServicesToEditableState(data.services || []);
 
@@ -129,12 +161,12 @@ function CreateQuoteContent() {
         const items = (await getReferencePricesByCategory(activeCategory)) as RefItem[];
 
         const convertedItems: RefItem[] = items.map((item: RefItem) => ({
-          ...item,
-          price:
-            currency === "USD"
-              ? Number((item.price / EXCHANGE_RATE).toFixed(2))
-              : item.price,
-        }));
+        ...item,
+        price:
+          currency === "USD"
+            ? Number((item.price / exchangeRate).toFixed(2))
+            : item.price,
+      }));
 
         setRefItems(convertedItems);
       } catch (error) {
@@ -145,7 +177,7 @@ function CreateQuoteContent() {
     if (!initializing) {
       fetchPrices();
     }
-  }, [activeCategory, initializing, currency]);
+  }, [activeCategory, initializing, currency, exchangeRate]);
 
   const addToBudget = (item: RefItem) => {
     const existing = selectedItems.find(i => i.id === item.id);
@@ -203,6 +235,13 @@ function CreateQuoteContent() {
         portfolioUrl,
         currency,
         countryCode,
+        ...(currency === "USD"
+          ? {
+              exchangeRateValue: exchangeRate,
+              exchangeRateSource: exchangeRateSource,
+              exchangeRateFetchedAt: exchangeRateFetchedAt,
+            }
+          : {}),
         services: finalServices,
         total: calculateTotal(),
         createdAt: new Date(),
