@@ -120,3 +120,11 @@ export const deleteProposalAndReturnUpdatedList = async (
   await deleteProposalById(proposalId);
   return getProposalsByFreelancer(freelancerId);
 };
+
+export const updateProposalStatus = async (
+  id: string,
+  status: "pending" | "accepted"
+): Promise<void> => {
+  const ref = doc(db, "proposals", id);
+  await updateDoc(ref, { status });
+};

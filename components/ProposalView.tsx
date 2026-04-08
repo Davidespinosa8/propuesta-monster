@@ -103,16 +103,23 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
           <div>
             <p className="text-[10px] font-black text-primary-DEFAULT uppercase tracking-widest mb-2">
               Presupuesto Interactivo
+              {proposal.currency === "USD" ? " • USD" : " • ARS"}
             </p>
             <h1 className="text-3xl md:text-4xl font-black text-white italic tracking-tighter uppercase">
               {proposal.jobTitle || "Propuesta de Trabajo"}
             </h1>
           </div>
 
-          <div className="text-right">
+          <div className="text-right flex flex-col items-end gap-2">
             <div className="bg-white text-dark-900 font-black text-xs px-3 py-1 rounded-full uppercase inline-block">
               {date}
             </div>
+
+            {proposal.currency === "USD" && proposal.exchangeRateValue && (
+              <div className="bg-dark-900/80 border border-white/10 text-gray-300 font-black text-[10px] px-3 py-2 rounded-full uppercase tracking-widest">
+                USD • TC {proposal.exchangeRateValue}
+              </div>
+            )}
           </div>
         </div>
 

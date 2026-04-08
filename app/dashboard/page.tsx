@@ -6,6 +6,7 @@ import { Timestamp } from "firebase/firestore";
 import {
   getProposalsByFreelancer,
   deleteProposalById,
+  updateProposalStatus
 } from "@/services/proposal.service";
 import { getUserPlanData } from "@/services/user.service";
 import type { Proposal } from "@/types/proposal";
@@ -13,6 +14,7 @@ import Link from "next/link";
 import UserProfile from "@/components/UserProfile";
 import ContactoForm from "@/components/ContactoForm";
 import { applyCoupon } from "@/services/coupon.service";
+import DashboardSummary from "@/components/dashboard/DashboardSummary";
 
 const FREE_LIMIT = 6;
 
@@ -41,6 +43,18 @@ export default function Dashboard() {
   const [dataLoading, setDataLoading] = useState(true);
   const [userPlan, setUserPlan] = useState<'free' | 'pro'>('free');
   const [usageCount, setUsageCount] = useState(0);
+
+  const sentCount = proposals.length;
+  const acceptedCount = proposals.filter((p) => p.status === "accepted").length;
+
+  const totalGeneratedARS = proposals
+    .filter((p) => p.status === "accepted" && (p.currency || "ARS") === "ARS")
+    .reduce((acc, p) => acc + (p.total || 0), 0);
+
+  const totalGeneratedUSD = proposals
+    .filter((p) => p.status === "accepted" && p.currency === "USD")
+    .reduce((acc, p) => acc + (p.total || 0), 0);
+  
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [couponInput, setCouponInput] = useState("");
@@ -72,19 +86,40 @@ export default function Dashboard() {
 }, [user]);
 
   const handleDelete = async (id: string) => {
-  if (!user) return;
+    if (!user) return;
 
-  if (confirm("¿Eliminar presupuesto? El crédito no se recupera.")) {
-    try {
-      await deleteProposalById(id);
-      setProposals((prev) => prev.filter((p) => p.id !== id));
-    } catch (e) {
-      console.error(e);
+    if (confirm("¿Eliminar presupuesto? El crédito no se recupera.")) {
+      try {
+        await deleteProposalById(id);
+        setProposals((prev) => prev.filter((p) => p.id !== id));
+      } catch (e) {
+        console.error(e);
+      }
     }
-  }
-};
+  };
 
-    const handleBuyPro = async () => {
+  const handleToggleAccepted = async (
+    id: string,
+    currentStatus: "pending" | "accepted"
+  ) => {
+    const nextStatus = currentStatus === "accepted" ? "pending" : "accepted";
+
+    try {
+      await updateProposalStatus(id, nextStatus);
+
+      setProposals((prev) =>
+        prev.map((proposal) =>
+          proposal.id === id
+            ? { ...proposal, status: nextStatus }
+            : proposal
+        )
+      );
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleBuyPro = async () => {
     if (!user) return;
     setIsProcessing(true);
 
@@ -156,7 +191,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="relative z-10 max-w-5xl mx-auto">
+      <div className="relative z-10 max-w-6xl mx-auto">
         {view === 'dashboard' ? (
           <div className="animate-in fade-in duration-500">
             <header className="flex justify-between items-center mb-12 flex-wrap gap-4">
@@ -178,13 +213,20 @@ export default function Dashboard() {
                 </Link>
               </div>
             </header>
+
+            <DashboardSummary
+              sentCount={sentCount}
+              acceptedCount={acceptedCount}
+              totalGeneratedARS={totalGeneratedARS}
+              totalGeneratedUSD={totalGeneratedUSD}
+            />
             
             <div className="grid gap-4">
               {dataLoading ? (
                 <div className="text-center text-gray-500 animate-pulse font-bold uppercase text-xs">Cargando...</div>
               ) : proposals.length > 0 ? (
                 proposals.map(p => (
-                  <div key={p.id} className="group bg-dark-800/50 backdrop-blur-md p-6 rounded-4xl border border-white/5 hover:border-primary-DEFAULT transition-all flex flex-col md:flex-row justify-between items-center gap-4">
+                  <div key={p.id} className="group bg-dark-800/50 backdrop-blur-md p-4 md:p-6 rounded-3xl md:rounded-4xl border border-white/5 hover:border-primary-DEFAULT transition-all flex flex-col md:flex-row justify-between md:items-center items-start gap-4">
                     <div className="flex-1 text-center md:text-left flex items-center gap-4">
                       {/* INDICADOR DE WHATSAPP (VISTO/PENDIENTE) */}
                       <div title={p.viewedAt ? "Leído" : "No leído aún"}>
@@ -211,30 +253,101 @@ export default function Dashboard() {
                             </svg>
                           </span>
                         )}
-                      </div>
+                    </div>
                       
-                      <div>
-                        <h3 className="font-bold text-lg group-hover:text-primary-DEFAULT transition-colors">{p.clientName}</h3>
-                        <p className="text-[10px] text-gray-500 uppercase">{formatProposalDate(p.createdAt)}</p>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-bold text-base md:text-lg group-hover:text-primary-DEFAULT transition-colors">
+                          {p.clientName}
+                        </h3>
+
+                        {p.status === "accepted" && (
+                          <span className="bg-green-500/15 text-green-400 border border-green-500/20 px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
+                            Aceptado
+                          </span>
+                        )}
                       </div>
-                    </div>
 
-                    <p className="font-mono font-black text-white text-xl">${p.total?.toLocaleString()}</p>
-
-                    <div className="flex items-center gap-2">
-                        <Link href={`/p/${p.id}`} className="p-3 bg-white/5 rounded-xl hover:bg-white hover:text-black transition-all text-gray-400" title="Ver">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                        </Link>
-                        <Link href={`/crear?edit=${p.id}`} className="p-3 bg-white/5 rounded-xl hover:bg-blue-500 hover:text-white transition-all text-gray-400" title="Editar">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                        </Link>
-                        <Link href={`/crear?duplicate=${p.id}`} className="p-3 bg-white/5 rounded-xl hover:bg-yellow-500 hover:text-black transition-all text-gray-400" title="Duplicar">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
-                        </Link>
-                        <button onClick={() => handleDelete(p.id)} className="p-3 bg-red-500/10 rounded-xl hover:bg-red-500 hover:text-white transition-all text-red-500" title="Eliminar">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                        </button>
+                      <p className="text-[10px] text-gray-500 uppercase">
+                        {formatProposalDate(p.createdAt)}
+                      </p>
                     </div>
+                  </div>
+
+                  <p className="font-mono font-black text-white text-lg md:text-xl">${p.total?.toLocaleString()}</p>
+
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/p/${p.id}`}
+                      className="p-3 bg-white/5 rounded-xl hover:bg-white hover:text-black transition-all text-gray-400"
+                      title="Ver"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                      </svg>
+                    </Link>
+
+                    <Link
+                      href={`/crear?edit=${p.id}`}
+                      className="p-3 bg-white/5 rounded-xl hover:bg-blue-500 hover:text-white transition-all text-gray-400"
+                      title="Editar"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                      </svg>
+                    </Link>
+
+                    <Link
+                      href={`/crear?duplicate=${p.id}`}
+                      className="p-3 bg-white/5 rounded-xl hover:bg-yellow-500 hover:text-black transition-all text-gray-400"
+                      title="Duplicar"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path>
+                      </svg>
+                    </Link>
+
+                    <button
+                      onClick={() => handleToggleAccepted(p.id, p.status)}
+                      className={`p-3 rounded-xl transition-all ${
+                        p.status === "accepted"
+                          ? "bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500 hover:text-black"
+                          : "bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white"
+                      }`}
+                      title={p.status === "accepted" ? "Volver a pendiente" : "Marcar como aceptado"}
+                    >
+                      {p.status === "accepted" ? (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M6 18L18 6M6 6l12 12"
+                          ></path>
+                        </svg>
+                      ) : (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M5 13l4 4L19 7"
+                          ></path>
+                        </svg>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => handleDelete(p.id)}
+                      className="p-3 bg-red-500/10 rounded-xl hover:bg-red-500 hover:text-white transition-all text-red-500"
+                      title="Eliminar"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                      </svg>
+                    </button>
+                  </div>
                   </div>
                 ))
               ) : (
