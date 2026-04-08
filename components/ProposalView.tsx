@@ -69,7 +69,8 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
       ? proposal.createdAt.toLocaleDateString()
       : new Date().toLocaleDateString();
 
-
+  const proposalCurrency = proposal.currency === "USD" ? "USD" : "ARS";
+  
   const handleSelectMessage = (message: string) => {
     const link = buildWhatsAppUrl(
       proposal.whatsapp || "",
@@ -89,18 +90,18 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
 
       return `- ${label} (${qty} x ${formatMoney(
         unitPrice,
-        proposal.currency === "USD" ? "USD" : "ARS"
+        proposalCurrency
       )} = ${formatMoney(
         total,
-        proposal.currency === "USD" ? "USD" : "ARS"
+        proposalCurrency
       )})`;
     })
     .join("\n");
 
   const freelancerMessage = `Hola, acepto el presupuesto por un total de *${formatMoney(
-  dynamicTotal,
-  proposal.currency === "USD" ? "USD" : "ARS"
-)}*.\n\nItems seleccionados:\n${selectedItemsList}\n\n¿Cómo seguimos?`;
+    dynamicTotal,
+    proposalCurrency
+  )}*.\n\nItems seleccionados:\n${selectedItemsList}\n\n¿Cómo seguimos?`;
 
   const whatsappLinkClient = buildWhatsAppUrl(
     freelancer?.phone || "",
@@ -228,7 +229,7 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
                       isSelected ? "text-white" : "text-gray-600"
                     }`}
                   >
-                    {formatMoney(getLineItemTotal(item), proposal.currency === "USD" ? "USD" : "ARS")}
+                    {formatMoney(getLineItemTotal(item), proposalCurrency)}
                   </p>
                 </div>
               );
@@ -247,7 +248,7 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
             {isOwner ? "Total Presupuestado" : "Total Seleccionado"}
           </p>
           <p className="text-5xl font-black text-white tracking-tighter transition-all duration-300">
-            {formatMoney(dynamicTotal, proposal.currency === "USD" ? "USD" : "ARS")}
+            {formatMoney(dynamicTotal, proposalCurrency)}
           </p>
         </div>
 
@@ -275,11 +276,8 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
                 className="px-8 py-4 bg-green-500 text-white font-black rounded-2xl uppercase text-xs hover:scale-105 transition-transform shadow-[0_0_30px_rgba(34,197,94,0.3)] flex items-center gap-2"
               >
                 <span>
-                  Confirmar ({formatMoney(
-                    dynamicTotal,
-                    proposal.currency === "USD" ? "USD" : "ARS"
-                  )}) 💬
-                </span>
+                Confirmar ({formatMoney(dynamicTotal, proposalCurrency)}) 💬
+              </span>
               </a>
             )
           ))}
