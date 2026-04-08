@@ -1,5 +1,7 @@
 import { Timestamp } from "firebase/firestore";
 
+export type CurrencyCode = "ARS" | "USD";
+
 export interface ProposalService {
   id: string;
   title: string;
@@ -29,7 +31,7 @@ export interface Proposal {
   createdAt: Timestamp | Date;
   viewedAt?: Timestamp;
   jobTitle?: string;
-  currency?: "ARS" | "USD";
+  currency?: CurrencyCode;
   countryCode?: string;
   exchangeRateValue?: number;
   exchangeRateSource?: string;

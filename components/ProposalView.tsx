@@ -8,10 +8,7 @@ import { Proposal, ProposalService } from "@/types/proposal";
 import { AppUser } from "@/types/user";
 import { buildWhatsAppUrl } from "@/utils/whatsapp";
 import MessageSuggestions from "@/components/proposal/MessageSuggestions";
-
-const getCurrencySymbol = (currency?: string) => {
-  return currency === "USD" ? "USD $" : "$";
-};
+import { formatMoney, getLineItemTotal, getLineItemUnitPrice, getLineItemQty } from "@/utils/money";
 
 export default function ProposalView({ proposal }: { proposal: Proposal }) {
   const { user } = useAuth();
@@ -28,7 +25,9 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
   }, [allItems, excludedItemIds]);
 
   const dynamicTotal = useMemo(() => {
-    return selectedItems.reduce((sum, item) => sum + (item.price || 0), 0);
+    return selectedItems.reduce((sum, item) => {
+      return sum + getLineItemTotal(item);
+    }, 0);
   }, [selectedItems]);
 
   const isOwner = user?.uid === proposal.freelancerId;
@@ -81,15 +80,27 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
     window.open(link, "_blank");
   };
 
-  const currencySymbol = getCurrencySymbol(proposal.currency);
-
   const selectedItemsList = selectedItems
     .map((item) => {
-      return `- ${item.title || item.description || "Item"} (${currencySymbol}${item.price})`;
+      const label = item.title || item.description || "Item";
+      const unitPrice = getLineItemUnitPrice(item);
+      const qty = getLineItemQty(item);
+      const total = getLineItemTotal(item);
+
+      return `- ${label} (${qty} x ${formatMoney(
+        unitPrice,
+        proposal.currency === "USD" ? "USD" : "ARS"
+      )} = ${formatMoney(
+        total,
+        proposal.currency === "USD" ? "USD" : "ARS"
+      )})`;
     })
     .join("\n");
 
-  const freelancerMessage = `Hola, acepto el presupuesto por un total de *${currencySymbol}${dynamicTotal.toLocaleString()}*.\n\nItems seleccionados:\n${selectedItemsList}\n\n¿Cómo seguimos?`;
+  const freelancerMessage = `Hola, acepto el presupuesto por un total de *${formatMoney(
+  dynamicTotal,
+  proposal.currency === "USD" ? "USD" : "ARS"
+)}*.\n\nItems seleccionados:\n${selectedItemsList}\n\n¿Cómo seguimos?`;
 
   const whatsappLinkClient = buildWhatsAppUrl(
     freelancer?.phone || "",
@@ -217,8 +228,7 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
                       isSelected ? "text-white" : "text-gray-600"
                     }`}
                   >
-                    {getCurrencySymbol(proposal.currency)}
-                    {(item.price || 0).toLocaleString()}
+                    {formatMoney(getLineItemTotal(item), proposal.currency === "USD" ? "USD" : "ARS")}
                   </p>
                 </div>
               );
@@ -237,8 +247,7 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
             {isOwner ? "Total Presupuestado" : "Total Seleccionado"}
           </p>
           <p className="text-5xl font-black text-white tracking-tighter transition-all duration-300">
-            {getCurrencySymbol(proposal.currency)}
-            {dynamicTotal.toLocaleString()}
+            {formatMoney(dynamicTotal, proposal.currency === "USD" ? "USD" : "ARS")}
           </p>
         </div>
 
@@ -266,8 +275,10 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
                 className="px-8 py-4 bg-green-500 text-white font-black rounded-2xl uppercase text-xs hover:scale-105 transition-transform shadow-[0_0_30px_rgba(34,197,94,0.3)] flex items-center gap-2"
               >
                 <span>
-                  Confirmar ({getCurrencySymbol(proposal.currency)}
-                  {dynamicTotal.toLocaleString()}) 💬
+                  Confirmar ({formatMoney(
+                    dynamicTotal,
+                    proposal.currency === "USD" ? "USD" : "ARS"
+                  )}) 💬
                 </span>
               </a>
             )
