@@ -18,7 +18,7 @@ export default function ContactoForm({ onFinish }: { onFinish: () => void }) {
       });
       alert("¡Mensaje enviado con éxito! Nos pondremos en contacto pronto.");
       onFinish(); // Esto te redirigirá (al home o dashboard)
-    } catch (error) {
+    } catch {
       alert("Error al enviar. Intentá de nuevo.");
     } finally {
       setLoading(false);
@@ -62,7 +62,7 @@ export default function ContactoForm({ onFinish }: { onFinish: () => void }) {
           <button type="button" onClick={handleReset} className="flex-1 py-4 bg-white/5 text-gray-400 font-black uppercase rounded-2xl text-xs hover:bg-red-500/10 hover:text-red-500 transition-all">
             Borrar Todo
           </button>
-          <button type="submit" disabled={loading} className="flex-[2] py-4 bg-white text-black font-black uppercase rounded-2xl text-xs hover:bg-primary-DEFAULT hover:text-white transition-all transform hover:scale-[1.02]">
+          <button type="submit" disabled={loading} className="flex-2 py-4 bg-white text-black font-black uppercase rounded-2xl text-xs hover:bg-primary-DEFAULT hover:text-white transition-all transform hover:scale-[1.02]">
             {loading ? "Enviando..." : "Enviar Mensaje"}
           </button>
         </div>
