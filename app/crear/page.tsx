@@ -25,6 +25,7 @@ import type {
 } from "@/types/create-proposal";
 import { CREATE_PROPOSAL_CATEGORIES } from "@/constants/create-proposal";
 import CreateSetupModal from "@/components/crear/CreateSetupModal";
+import { getLineItemTotal } from "@/utils/money";
 
 function CreateQuoteContent() {
   const router = useRouter();
@@ -211,8 +212,15 @@ function CreateQuoteContent() {
   };
 
   const calculateTotal = () => {
-    const totalOficios = selectedItems.reduce((acc, item) => acc + (item.customPrice * item.qty), 0);
-    const totalManual = digitalBasePrice + digitalServices.reduce((acc, item) => acc + item.price, 0);
+    const totalOficios = selectedItems.reduce(
+      (acc, item) => acc + getLineItemTotal(item),
+      0
+    );
+
+    const totalManual =
+      digitalBasePrice +
+      digitalServices.reduce((acc, item) => acc + item.price, 0);
+
     return totalOficios + totalManual;
   };
 

@@ -1,3 +1,5 @@
+import { formatMoney } from "@/utils/money";
+
 interface DashboardSummaryProps {
   sentCount: number;
   acceptedCount: number;
@@ -22,11 +24,11 @@ export default function DashboardSummary({
     },
     {
       label: "Generado ARS",
-      value: `$${totalGeneratedARS.toLocaleString()}`,
+      value: formatMoney(totalGeneratedARS, "ARS")
     },
     {
       label: "Generado USD",
-      value: `USD $${totalGeneratedUSD.toLocaleString()}`,
+      value: formatMoney(totalGeneratedUSD, "USD")
     },
   ];
 
