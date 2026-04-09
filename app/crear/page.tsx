@@ -106,8 +106,10 @@ function CreateQuoteContent() {
 
         if (data?.rate) {
           setExchangeRate(data.rate);
-          setExchangeRateSource(data.source || "DolarApi - Blue Venta");
-          setExchangeRateFetchedAt(data.updatedAt || new Date().toISOString());
+          setExchangeRateSource(data.source || "Cotización manual");
+          setExchangeRateFetchedAt(
+            data.fetchedAt || data.updatedAt || new Date().toISOString()
+          );
         }
       } catch (error) {
         console.error("No se pudo cargar la cotización", error);
@@ -251,7 +253,7 @@ function CreateQuoteContent() {
             }
           : {}),
         services: finalServices,
-        total: calculateTotal(),
+        total,
         createdAt: new Date(),
         status: "pending" as const,
       };
@@ -269,6 +271,8 @@ function CreateQuoteContent() {
   };
 
   if (initializing) return <div className="min-h-screen bg-dark-900 flex items-center justify-center text-white italic">Iniciando...</div>;
+
+  const total = calculateTotal();
 
   return (
     <>
@@ -350,7 +354,7 @@ function CreateQuoteContent() {
                 onRemoveItem={(id) => updateQty(id, 0)}
               >
                 <BudgetActionsPanel
-                  total={calculateTotal()}
+                  total={total}
                   onSaveDraft={() => setRedirectTarget("dashboard")}
                   onGenerate={() => setRedirectTarget("view")}
                 />
