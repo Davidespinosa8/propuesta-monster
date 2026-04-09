@@ -16,19 +16,19 @@ export default function DashboardSummary({
   const cards = [
     {
       label: "Enviados",
-      value: sentCount,
+      value: String(sentCount),
     },
     {
       label: "Aceptados",
-      value: acceptedCount,
+      value: String(acceptedCount),
     },
     {
       label: "Generado ARS",
-      value: formatMoney(totalGeneratedARS, "ARS")
+      value: formatMoney(totalGeneratedARS, "ARS"),
     },
     {
       label: "Generado USD",
-      value: formatMoney(totalGeneratedUSD, "USD")
+      value: formatMoney(totalGeneratedUSD, "USD"),
     },
   ];
 
