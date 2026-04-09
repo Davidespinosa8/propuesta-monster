@@ -7,11 +7,14 @@ import { db } from "@/lib/firebase";
 import { Proposal, ProposalService } from "@/types/proposal";
 import { AppUser } from "@/types/user";
 import { buildWhatsAppUrl } from "@/utils/whatsapp";
+import MessageSuggestions from "@/components/proposal/MessageSuggestions";
+import { formatMoney, getLineItemTotal, getLineItemUnitPrice, getLineItemQty } from "@/utils/money";
 
 export default function ProposalView({ proposal }: { proposal: Proposal }) {
   const { user } = useAuth();
   const [freelancer, setFreelancer] = useState<AppUser | null>(null);
   const [excludedItemIds, setExcludedItemIds] = useState<string[]>([]);
+  const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
 
   const allItems: ProposalService[] = useMemo(() => {
     return proposal.services || proposal.items || [];
@@ -22,7 +25,9 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
   }, [allItems, excludedItemIds]);
 
   const dynamicTotal = useMemo(() => {
-    return selectedItems.reduce((sum, item) => sum + (item.price || 0), 0);
+    return selectedItems.reduce((sum, item) => {
+      return sum + getLineItemTotal(item);
+    }, 0);
   }, [selectedItems]);
 
   const isOwner = user?.uid === proposal.freelancerId;
@@ -64,22 +69,39 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
       ? proposal.createdAt.toLocaleDateString()
       : new Date().toLocaleDateString();
 
-  const clientMessage = `Hola ${proposal.clientName}, Soy ${
-    freelancer?.businessName || freelancer?.fullName || "el profesional"
-  }. Te paso el presupuesto interactivo para que elijas las opciones: ${shareUrl}`;
-
-  const whatsappLinkOwner = buildWhatsAppUrl(
-    proposal.whatsapp || "",
-    clientMessage
-  );
+  const proposalCurrency = proposal.currency === "USD" ? "USD" : "ARS";
+  
+  const handleSelectMessage = (message: string) => {
+    const link = buildWhatsAppUrl(
+      proposal.whatsapp || "",
+      message,
+      proposal.countryCode || "54"
+    );
+    setIsMessageModalOpen(false);
+    window.open(link, "_blank");
+  };
 
   const selectedItemsList = selectedItems
     .map((item) => {
-      return `- ${item.title || item.description || "Item"} ($${item.price})`;
+      const label = item.title || item.description || "Item";
+      const unitPrice = getLineItemUnitPrice(item);
+      const qty = getLineItemQty(item);
+      const total = getLineItemTotal(item);
+
+      return `- ${label} (${qty} x ${formatMoney(
+        unitPrice,
+        proposalCurrency
+      )} = ${formatMoney(
+        total,
+        proposalCurrency
+      )})`;
     })
     .join("\n");
 
-  const freelancerMessage = `Hola, acepto el presupuesto por un total de *$${dynamicTotal.toLocaleString()}*.\n\nItems seleccionados:\n${selectedItemsList}\n\n¿Cómo seguimos?`;
+  const freelancerMessage = `Hola, acepto el presupuesto por un total de *${formatMoney(
+    dynamicTotal,
+    proposalCurrency
+  )}*.\n\nItems seleccionados:\n${selectedItemsList}\n\n¿Cómo seguimos?`;
 
   const whatsappLinkClient = buildWhatsAppUrl(
     freelancer?.phone || "",
@@ -93,16 +115,23 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
           <div>
             <p className="text-[10px] font-black text-primary-DEFAULT uppercase tracking-widest mb-2">
               Presupuesto Interactivo
+              {proposal.currency === "USD" ? " • USD" : " • ARS"}
             </p>
             <h1 className="text-3xl md:text-4xl font-black text-white italic tracking-tighter uppercase">
               {proposal.jobTitle || "Propuesta de Trabajo"}
             </h1>
           </div>
 
-          <div className="text-right">
+          <div className="text-right flex flex-col items-end gap-2">
             <div className="bg-white text-dark-900 font-black text-xs px-3 py-1 rounded-full uppercase inline-block">
               {date}
             </div>
+
+            {proposal.currency === "USD" && proposal.exchangeRateValue && (
+              <div className="bg-dark-900/80 border border-white/10 text-gray-300 font-black text-[10px] px-3 py-2 rounded-full uppercase tracking-widest">
+                USD • TC {proposal.exchangeRateValue}
+              </div>
+            )}
           </div>
         </div>
 
@@ -200,7 +229,7 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
                       isSelected ? "text-white" : "text-gray-600"
                     }`}
                   >
-                    ${(item.price || 0).toLocaleString()}
+                    {formatMoney(getLineItemTotal(item), proposalCurrency)}
                   </p>
                 </div>
               );
@@ -219,21 +248,20 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
             {isOwner ? "Total Presupuestado" : "Total Seleccionado"}
           </p>
           <p className="text-5xl font-black text-white tracking-tighter transition-all duration-300">
-            ${dynamicTotal.toLocaleString()}
+            {formatMoney(dynamicTotal, proposalCurrency)}
           </p>
         </div>
 
         {typeof window !== "undefined" &&
           (isOwner ? (
             proposal.whatsapp ? (
-              <a
-                href={whatsappLinkOwner}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
+                onClick={() => setIsMessageModalOpen(true)}
                 className="px-8 py-4 bg-white text-dark-900 font-black rounded-2xl uppercase text-xs hover:scale-105 transition-transform shadow-xl flex items-center gap-2"
               >
                 <span>Enviar a Cliente 📤</span>
-              </a>
+              </button>
             ) : (
               <span className="text-xs text-gray-500 font-bold">
                 Sin teléfono de cliente
@@ -247,11 +275,23 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
                 rel="noopener noreferrer"
                 className="px-8 py-4 bg-green-500 text-white font-black rounded-2xl uppercase text-xs hover:scale-105 transition-transform shadow-[0_0_30px_rgba(34,197,94,0.3)] flex items-center gap-2"
               >
-                <span>Confirmar (${dynamicTotal.toLocaleString()}) 💬</span>
+                <span>
+                Confirmar ({formatMoney(dynamicTotal, proposalCurrency)}) 💬
+              </span>
               </a>
             )
           ))}
       </div>
+
+      <MessageSuggestions
+        isOpen={isMessageModalOpen}
+        clientName={proposal.clientName}
+        total={dynamicTotal}
+        currency={proposal.currency}
+        shareUrl={shareUrl}
+        onClose={() => setIsMessageModalOpen(false)}
+        onSelectMessage={handleSelectMessage}
+      />
 
       {proposal.portfolioUrl && (
         <div className="p-8 md:p-12 border-t border-white/10 bg-black/20 text-center">

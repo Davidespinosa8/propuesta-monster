@@ -28,7 +28,12 @@ export const applyCoupon = async (userId: string, couponCode: string) => {
     }
 
     return { success: false, message: "Este cupón no es válido para activación gratuita" };
-  } catch (error: any) {
-    return { success: false, message: error.message };
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Ocurrió un error al aplicar el cupón";
+
+    return { success: false, message };
   }
 };

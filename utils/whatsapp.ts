@@ -2,7 +2,13 @@ export const cleanPhoneNumber = (phone?: string) => {
   return (phone || "").replace(/[^0-9]/g, "");
 };
 
-export const buildWhatsAppUrl = (phone: string, message: string) => {
-  const cleaned = cleanPhoneNumber(phone);
-  return `https://wa.me/${cleaned}?text=${encodeURIComponent(message)}`;
+export const buildWhatsAppUrl = (
+  phone: string,
+  message: string,
+  countryCode: string = "54"
+) => {
+  const cleanedPhone = cleanPhoneNumber(phone);
+  const fullPhone = `${countryCode}${cleanedPhone}`;
+
+  return `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
 };
