@@ -6,7 +6,7 @@ import {
   getReferencePricesByCategory,
   saveProposalByMode,
 } from "@/services/proposal.service";
-import { getUserRole } from "@/services/user.service";
+import { getUserRole, getUserById } from "@/services/user.service";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
 import {
@@ -226,6 +226,8 @@ function CreateQuoteContent() {
     return totalOficios + totalManual;
   };
 
+  const total = calculateTotal();
+
   const saveToFirebase = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -235,10 +237,25 @@ function CreateQuoteContent() {
       digitalServices,
       digitalBasePrice,
     });
+    
+  const userData = await getUserById(user.uid);
+
+  const freelancerName =
+    userData?.fullName ||
+    user.displayName ||
+    "Profesional";
+
+  const freelancerBusinessName =
+    userData?.businessName || "";
+
+  const freelancerPhone =
+    userData?.phone || "";
 
     try {
       const proposalData = {
-        freelancerName: user.displayName || "Profesional",
+        freelancerName,
+        freelancerBusinessName,
+        freelancerPhone,
         freelancerId: user.uid,
         clientName,
         whatsapp,
@@ -271,8 +288,6 @@ function CreateQuoteContent() {
   };
 
   if (initializing) return <div className="min-h-screen bg-dark-900 flex items-center justify-center text-white italic">Iniciando...</div>;
-
-  const total = calculateTotal();
 
   return (
     <>

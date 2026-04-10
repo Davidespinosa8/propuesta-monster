@@ -21,6 +21,8 @@ export interface Proposal {
   id: string;
   freelancerId: string;
   freelancerName: string;
+  freelancerBusinessName?: string;
+  freelancerPhone?: string;
   clientName: string;
   whatsapp: string;
   portfolioUrl?: string;
