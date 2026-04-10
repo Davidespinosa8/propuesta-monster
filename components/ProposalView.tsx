@@ -103,8 +103,11 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
     proposalCurrency
   )}*.\n\nItems seleccionados:\n${selectedItemsList}\n\n¿Cómo seguimos?`;
 
+  const freelancerPhone =
+  proposal.freelancerPhone || freelancer?.phone || "";
+
   const whatsappLinkClient = buildWhatsAppUrl(
-    freelancer?.phone || "",
+    freelancerPhone,
     freelancerMessage
   );
 
@@ -151,17 +154,22 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
             )}
           </div>
 
-          {freelancer && (
-            <div className="md:text-right">
-              <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">
-                Por:
-              </p>
-              <h3 className="text-xl font-bold text-white capitalize">
-                {freelancer.businessName || freelancer.fullName}
-              </h3>
-              <p className="text-sm text-gray-400">{freelancer.phone}</p>
-            </div>
-          )}
+          <div className="md:text-right">
+            <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">
+              Por:
+            </p>
+            <h3 className="text-xl font-bold text-white capitalize">
+              {proposal.freelancerBusinessName ||
+                proposal.freelancerName ||
+                freelancer?.businessName ||
+                freelancer?.fullName ||
+                "Profesional"}
+            </h3>
+
+            {freelancerPhone && (
+              <p className="text-sm text-gray-400">{freelancerPhone}</p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -268,7 +276,7 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
               </span>
             )
           ) : (
-            freelancer?.phone && (
+            freelancerPhone && (
               <a
                 href={whatsappLinkClient}
                 target="_blank"
