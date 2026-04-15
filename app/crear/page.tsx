@@ -64,6 +64,8 @@ function CreateQuoteContent() {
   const [manualTask, setManualTask] = useState("");
   const [manualPrice, setManualPrice] = useState(0);
 
+  const [currentUserData, setCurrentUserData] = useState<Awaited<ReturnType<typeof getUserById>>>(null);
+
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login");
@@ -74,10 +76,16 @@ function CreateQuoteContent() {
       if (!user) return;
 
       try {
-        const role = await getUserRole(user.uid);
+        const [role, userData] = await Promise.all([
+          getUserRole(user.uid),
+          getUserById(user.uid),
+        ]);
+
         if (role && CREATE_PROPOSAL_CATEGORIES.some((c) => c.id === role)) {
           setActiveCategory(role);
         }
+
+        setCurrentUserData(userData);
       } catch (error) {
         console.error(error);
       } finally {
@@ -238,18 +246,16 @@ function CreateQuoteContent() {
       digitalBasePrice,
     });
     
-  const userData = await getUserById(user.uid);
-
   const freelancerName =
-    userData?.fullName ||
+    currentUserData?.fullName ||
     user.displayName ||
     "Profesional";
 
   const freelancerBusinessName =
-    userData?.businessName || "";
+    currentUserData?.businessName || "";
 
   const freelancerPhone =
-    userData?.phone || "";
+    currentUserData?.phone || "";
 
     try {
       const proposalData = {

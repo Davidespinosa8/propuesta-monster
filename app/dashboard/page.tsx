@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Timestamp } from "firebase/firestore";
@@ -44,18 +44,31 @@ export default function Dashboard() {
   const [userPlan, setUserPlan] = useState<'free' | 'pro'>('free');
   const [usageCount, setUsageCount] = useState(0);
 
-  const sentCount = proposals.length;
-  const acceptedCount = proposals.filter((p) => p.status === "accepted").length;
+  const { sentCount, acceptedCount, totalGeneratedARS, totalGeneratedUSD } =
+    useMemo(() => {
+      const sentCount = proposals.length;
+      const acceptedCount = proposals.filter(
+        (p) => p.status === "accepted"
+      ).length;
 
-  const totalGeneratedARS = proposals
-    .filter((p) => p.status === "accepted" && (p.currency || "ARS") === "ARS")
-    .reduce((acc, p) => acc + (p.total || 0), 0);
+      const totalGeneratedARS = proposals
+        .filter(
+          (p) => p.status === "accepted" && (p.currency || "ARS") === "ARS"
+        )
+        .reduce((acc, p) => acc + (p.total || 0), 0);
 
-  const totalGeneratedUSD = proposals
-    .filter((p) => p.status === "accepted" && p.currency === "USD")
-    .reduce((acc, p) => acc + (p.total || 0), 0);
+      const totalGeneratedUSD = proposals
+        .filter((p) => p.status === "accepted" && p.currency === "USD")
+        .reduce((acc, p) => acc + (p.total || 0), 0);
+
+      return {
+        sentCount,
+        acceptedCount,
+        totalGeneratedARS,
+        totalGeneratedUSD,
+      };
+    }, [proposals]);
   
-
   const [isProcessing, setIsProcessing] = useState(false);
   const [couponInput, setCouponInput] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
@@ -65,25 +78,29 @@ export default function Dashboard() {
   }, [authLoading, user, router]);
 
   useEffect(() => {
-  if (!user) return;
+    if (!user) return;
 
-  const fetchData = async () => {
-    try {
-      const proposalsData = await getProposalsByFreelancer(user.uid);
-      setProposals(proposalsData);
+    const fetchData = async () => {
+      setDataLoading(true);
 
-      const userPlanData = await getUserPlanData(user.uid);
-      setUserPlan(userPlanData.plan);
-      setUsageCount(userPlanData.usageCount);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setDataLoading(false);
-    }
-  };
+      try {
+        const [proposalsData, userPlanData] = await Promise.all([
+          getProposalsByFreelancer(user.uid),
+          getUserPlanData(user.uid),
+        ]);
 
-  fetchData();
-}, [user]);
+        setProposals(proposalsData);
+        setUserPlan(userPlanData.plan);
+        setUsageCount(userPlanData.usageCount);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setDataLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user]);
 
   const handleDelete = async (id: string) => {
     if (!user) return;
@@ -150,7 +167,21 @@ export default function Dashboard() {
     setCouponLoading(false);
   };
 
-  if (authLoading || !user) return <div className="min-h-screen bg-dark-900 flex items-center justify-center text-white italic">Cargando...</div>;
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-dark-900 flex items-center justify-center text-white italic">
+        Cargando...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-dark-900 flex items-center justify-center text-white italic">
+        Redirigiendo...
+      </div>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-dark-900 text-white p-4 md:p-8 relative overflow-hidden">
@@ -223,7 +254,14 @@ export default function Dashboard() {
             
             <div className="grid gap-4">
               {dataLoading ? (
-                <div className="text-center text-gray-500 animate-pulse font-bold uppercase text-xs">Cargando...</div>
+                <div className="grid gap-4">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="bg-dark-800/50 backdrop-blur-md p-4 md:p-6 rounded-3xl md:rounded-4xl border border-white/5 animate-pulse h-28"
+                    />
+                  ))}
+                </div>
               ) : proposals.length > 0 ? (
                 proposals.map(p => (
                   <div key={p.id} className="group bg-dark-800/50 backdrop-blur-md p-4 md:p-6 rounded-3xl md:rounded-4xl border border-white/5 hover:border-primary-DEFAULT transition-all flex flex-col md:flex-row justify-between md:items-center items-start gap-4">
@@ -366,27 +404,27 @@ export default function Dashboard() {
 
       {/* MODAL UPGRADE */}
       {showUpgradeModal && (
-          <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-              <div className="bg-dark-900 border border-white/10 rounded-3xl max-w-md w-full p-8 relative shadow-2xl text-center animate-in zoom-in-95">
-                  <div className="absolute top-0 left-0 w-full h-2 bg-linear-to-r from-yellow-400 to-orange-500"></div>
-                  <button onClick={() => setShowUpgradeModal(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white">✕</button>
-                  <div className="relative z-10">
-                    <span className="text-4xl mb-4 block">🚀</span>
-                    <h3 className="text-2xl font-black text-white italic uppercase mb-2">¡Límite Alcanzado!</h3>
-                    <p className="text-gray-400 text-sm mb-6">Pasate a PRO para presupuestos ilimitados.</p>
-                    <button onClick={handleBuyPro} disabled={isProcessing} className="w-full py-4 bg-linear-to-r from-yellow-400 to-orange-500 text-black font-black uppercase rounded-xl hover:scale-[1.02] transition-all">
-                        {isProcessing ? "Cargando..." : "Desbloquear Ilimitado 🔓"}
-                    </button>
-                    <div className="my-6 flex items-center gap-2">
-                        <div className="h-px bg-white/10 flex-1"></div>
-                        <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest italic">O canjeá un código</span>
-                        <div className="h-px bg-white/10 flex-1"></div>
-                    </div>
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-dark-900 border border-white/10 rounded-3xl max-w-md w-full p-8 relative shadow-2xl text-center animate-in zoom-in-95">
+            <div className="absolute top-0 left-0 w-full h-2 bg-linear-to-r from-yellow-400 to-orange-500"></div>
+              <button onClick={() => setShowUpgradeModal(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white">✕</button>
+              <div className="relative z-10">
+                <span className="text-4xl mb-4 block">🚀</span>
+                <h3 className="text-2xl font-black text-white italic uppercase mb-2">¡Límite Alcanzado!</h3>
+                <p className="text-gray-400 text-sm mb-6">Pasate a PRO para presupuestos ilimitados.</p>
+                <button onClick={handleBuyPro} disabled={isProcessing} className="w-full py-4 bg-linear-to-r from-yellow-400 to-orange-500 text-black font-black uppercase rounded-xl hover:scale-[1.02] transition-all">
+                    {isProcessing ? "Cargando..." : "Desbloquear Ilimitado 🔓"}
+                </button>
+                <div className="my-6 flex items-center gap-2">
+                  <div className="h-px bg-white/10 flex-1"></div>
+                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest italic">O canjeá un código</span>
+                    <div className="h-px bg-white/10 flex-1"></div>
+                </div>
                     <div className="flex gap-2">
-                        <input type="text" placeholder="CÓDIGO" value={couponInput} onChange={(e) => setCouponInput(e.target.value.toUpperCase())} className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white font-bold outline-none focus:border-primary-DEFAULT" />
-                        <button onClick={handleCouponSubmit} disabled={couponLoading} className="bg-white text-black px-4 py-2 rounded-xl font-black text-[10px] uppercase hover:bg-primary-DEFAULT transition-colors">
-                            {couponLoading ? "..." : "Canjear"}
-                        </button>
+                      <input type="text" placeholder="CÓDIGO" value={couponInput} onChange={(e) => setCouponInput(e.target.value.toUpperCase())} className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white font-bold outline-none focus:border-primary-DEFAULT" />
+                      <button onClick={handleCouponSubmit} disabled={couponLoading} className="bg-white text-black px-4 py-2 rounded-xl font-black text-[10px] uppercase hover:bg-primary-DEFAULT transition-colors">
+                        {couponLoading ? "..." : "Canjear"}
+                      </button>
                     </div>
                   </div>
               </div>

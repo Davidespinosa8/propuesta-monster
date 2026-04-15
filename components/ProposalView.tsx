@@ -46,9 +46,14 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
   };
 
   useEffect(() => {
-    const fetchFreelancer = async () => {
-      if (!proposal.freelancerId) return;
+    const hasEmbeddedFreelancerData =
+      !!proposal.freelancerName ||
+      !!proposal.freelancerBusinessName ||
+      !!proposal.freelancerPhone;
 
+    if (hasEmbeddedFreelancerData || !proposal.freelancerId) return;
+
+    const fetchFreelancer = async () => {
       try {
         const userDoc = await getDoc(doc(db, "users", proposal.freelancerId));
         if (userDoc.exists()) {
@@ -60,7 +65,12 @@ export default function ProposalView({ proposal }: { proposal: Proposal }) {
     };
 
     fetchFreelancer();
-  }, [proposal.freelancerId]);
+  }, [
+    proposal.freelancerId,
+    proposal.freelancerName,
+    proposal.freelancerBusinessName,
+    proposal.freelancerPhone,
+  ]);
 
   const date =
     proposal.createdAt instanceof Timestamp

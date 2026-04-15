@@ -30,8 +30,8 @@ export interface Proposal {
   items?: ProposalService[];
   total: number;
   status: "pending" | "accepted";
-  createdAt: Timestamp | Date;
-  viewedAt?: Timestamp;
+  createdAt: Timestamp | Date | string | null;
+viewedAt?: Timestamp | Date | string | null;
   jobTitle?: string;
   currency?: CurrencyCode;
   countryCode?: string;
