@@ -65,6 +65,7 @@ function CreateQuoteContent() {
   const [manualPrice, setManualPrice] = useState(0);
 
   const [currentUserData, setCurrentUserData] = useState<Awaited<ReturnType<typeof getUserById>>>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -238,24 +239,27 @@ function CreateQuoteContent() {
 
   const saveToFirebase = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+
+    if (!user || isSubmitting) return;
+
+    setIsSubmitting(true);
 
     const finalServices = mapEditableStateToStoredServices({
       selectedItems,
       digitalServices,
       digitalBasePrice,
     });
-    
-  const freelancerName =
-    currentUserData?.fullName ||
-    user.displayName ||
-    "Profesional";
 
-  const freelancerBusinessName =
-    currentUserData?.businessName || "";
+    const freelancerName =
+      currentUserData?.fullName ||
+      user.displayName ||
+      "Profesional";
 
-  const freelancerPhone =
-    currentUserData?.phone || "";
+    const freelancerBusinessName =
+      currentUserData?.businessName || "";
+
+    const freelancerPhone =
+      currentUserData?.phone || "";
 
     try {
       const proposalData = {
@@ -290,6 +294,8 @@ function CreateQuoteContent() {
       router.push(redirectTarget === "view" ? `/p/${finalId}` : "/dashboard");
     } catch (error) {
       console.error(error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -376,6 +382,7 @@ function CreateQuoteContent() {
               >
                 <BudgetActionsPanel
                   total={total}
+                  isSubmitting={isSubmitting}
                   onSaveDraft={() => setRedirectTarget("dashboard")}
                   onGenerate={() => setRedirectTarget("view")}
                 />
