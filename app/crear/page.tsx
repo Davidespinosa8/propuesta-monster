@@ -56,6 +56,8 @@ function CreateQuoteContent() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
 
+  const [isPricesLoading, setIsPricesLoading] = useState(false);
+
   const [digitalBasePrice, setDigitalBasePrice] = useState(0);
   const [digitalServices, setDigitalServices] = useState<DigitalService[]>([]);
 
@@ -63,6 +65,10 @@ function CreateQuoteContent() {
   const [isAddingManual, setIsAddingManual] = useState(false);
   const [manualTask, setManualTask] = useState("");
   const [manualPrice, setManualPrice] = useState(0);
+
+  const [currentUserData, setCurrentUserData] = useState<Awaited<ReturnType<typeof getUserById>>>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitAction, setSubmitAction] = useState<"save" | "generate" | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -74,10 +80,16 @@ function CreateQuoteContent() {
       if (!user) return;
 
       try {
-        const role = await getUserRole(user.uid);
+        const [role, userData] = await Promise.all([
+          getUserRole(user.uid),
+          getUserById(user.uid),
+        ]);
+
         if (role && CREATE_PROPOSAL_CATEGORIES.some((c) => c.id === role)) {
           setActiveCategory(role);
         }
+
+        setCurrentUserData(userData);
       } catch (error) {
         console.error(error);
       } finally {
@@ -158,28 +170,41 @@ function CreateQuoteContent() {
   }, [editId, duplicateId, initializing]);
 
   useEffect(() => {
+    if (initializing) return;
+
+    let isActive = true;
+
     const fetchPrices = async () => {
+      setIsPricesLoading(true);
+
       try {
-        setRefItems([]);
         const items = (await getReferencePricesByCategory(activeCategory)) as RefItem[];
 
         const convertedItems: RefItem[] = items.map((item: RefItem) => ({
-        ...item,
-        price:
-          currency === "USD"
-            ? Number((item.price / exchangeRate).toFixed(2))
-            : item.price,
-      }));
+          ...item,
+          price:
+            currency === "USD"
+              ? Number((item.price / exchangeRate).toFixed(2))
+              : item.price,
+        }));
 
-        setRefItems(convertedItems);
+        if (isActive) {
+          setRefItems(convertedItems);
+        }
       } catch (error) {
         console.error(error);
+      } finally {
+        if (isActive) {
+          setIsPricesLoading(false);
+        }
       }
     };
 
-    if (!initializing) {
-      fetchPrices();
-    }
+    fetchPrices();
+
+    return () => {
+      isActive = false;
+    };
   }, [activeCategory, initializing, currency, exchangeRate]);
 
   const addToBudget = (item: RefItem) => {
@@ -202,11 +227,13 @@ function CreateQuoteContent() {
   };
 
   const updateQty = (id: string, qty: number) => {
-    if (qty < 1) {
-      setSelectedItems(selectedItems.filter(i => i.id !== id));
-      return;
-    }
-    setSelectedItems(selectedItems.map(i => i.id === id ? { ...i, qty } : i));
+    const safeQty = Math.max(0, qty);
+
+    setSelectedItems((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, qty: safeQty } : item
+      )
+    );
   };
 
   const updateCustomPrice = (id: string, price: number) => {
@@ -230,26 +257,27 @@ function CreateQuoteContent() {
 
   const saveToFirebase = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+
+    if (!user || isSubmitting || !submitAction) return;
+
+    setIsSubmitting(true);
 
     const finalServices = mapEditableStateToStoredServices({
       selectedItems,
       digitalServices,
       digitalBasePrice,
     });
-    
-  const userData = await getUserById(user.uid);
 
-  const freelancerName =
-    userData?.fullName ||
-    user.displayName ||
-    "Profesional";
+    const freelancerName =
+      currentUserData?.fullName ||
+      user.displayName ||
+      "Profesional";
 
-  const freelancerBusinessName =
-    userData?.businessName || "";
+    const freelancerBusinessName =
+      currentUserData?.businessName || "";
 
-  const freelancerPhone =
-    userData?.phone || "";
+    const freelancerPhone =
+      currentUserData?.phone || "";
 
     try {
       const proposalData = {
@@ -284,6 +312,9 @@ function CreateQuoteContent() {
       router.push(redirectTarget === "view" ? `/p/${finalId}` : "/dashboard");
     } catch (error) {
       console.error(error);
+    } finally {
+      setIsSubmitting(false);
+      setSubmitAction(null);
     }
   };
 
@@ -329,6 +360,7 @@ function CreateQuoteContent() {
                 searchTerm={searchTerm}
                 refItems={refItems}
                 selectedItems={selectedItems}
+                isLoading={isPricesLoading}
                 onSearchChange={setSearchTerm}
                 onAddItem={addToBudget}
               />
@@ -366,13 +398,23 @@ function CreateQuoteContent() {
                 onCountryCodeChange={setCountryCode}
                 onQtyChange={updateQty}
                 onCustomPriceChange={updateCustomPrice}
-                onRemoveItem={(id) => updateQty(id, 0)}
+                onRemoveItem={(id) =>
+                  setSelectedItems((prev) => prev.filter((item) => item.id !== id))
+                }
               >
-                <BudgetActionsPanel
-                  total={total}
-                  onSaveDraft={() => setRedirectTarget("dashboard")}
-                  onGenerate={() => setRedirectTarget("view")}
-                />
+              <BudgetActionsPanel
+                total={total}
+                isSubmitting={isSubmitting}
+                submitAction={submitAction}
+                onSaveDraft={() => {
+                  setRedirectTarget("dashboard");
+                  setSubmitAction("save");
+                }}
+                onGenerate={() => {
+                  setRedirectTarget("view");
+                  setSubmitAction("generate");
+                }}
+              />
               </SelectedItemsTicket>
             </form>
           </div>

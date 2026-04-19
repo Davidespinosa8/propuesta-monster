@@ -1,11 +1,15 @@
 interface BudgetActionsPanelProps {
   total: number;
+  isSubmitting?: boolean;
+  submitAction?: "save" | "generate" | null;
   onSaveDraft: () => void;
   onGenerate: () => void;
 }
 
 export default function BudgetActionsPanel({
   total,
+  isSubmitting = false,
+  submitAction = null,
   onSaveDraft,
   onGenerate,
 }: BudgetActionsPanelProps) {
@@ -24,17 +28,27 @@ export default function BudgetActionsPanel({
         <button
           type="submit"
           onClick={onSaveDraft}
-          className="py-4 bg-white/5 border border-white/10 text-white font-black rounded-xl text-[10px] uppercase hover:bg-white/10 transition-all"
+          disabled={isSubmitting}
+          className={`py-4 border font-black rounded-xl text-[10px] uppercase transition-all ${
+            isSubmitting
+              ? "bg-white/5 border-white/10 text-gray-500 cursor-not-allowed"
+              : "bg-white/5 border border-white/10 text-white hover:bg-white/10"
+          }`}
         >
-          💾 Guardar
+          {isSubmitting && submitAction === "save" ? "Guardando..." : "💾 Guardar"}
         </button>
 
         <button
           type="submit"
           onClick={onGenerate}
-          className="py-4 bg-white text-black font-black rounded-xl text-[10px] uppercase hover:scale-[1.02] transition-all active:scale-95"
+          disabled={isSubmitting}
+          className={`py-4 font-black rounded-xl text-[10px] uppercase transition-all ${
+            isSubmitting
+              ? "bg-gray-500 text-white cursor-not-allowed opacity-70"
+              : "bg-white text-black hover:scale-[1.02] active:scale-95"
+          }`}
         >
-          🚀 Generar
+          {isSubmitting && submitAction === "generate" ? "Generando..." : "🚀 Generar"}
         </button>
       </div>
     </>

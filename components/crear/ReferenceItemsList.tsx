@@ -4,6 +4,7 @@ interface ReferenceItemsListProps {
   searchTerm: string;
   refItems: RefItem[];
   selectedItems: SelectedItem[];
+  isLoading?: boolean;
   onSearchChange: (value: string) => void;
   onAddItem: (item: RefItem) => void;
 }
@@ -12,9 +13,14 @@ export default function ReferenceItemsList({
   searchTerm,
   refItems,
   selectedItems,
+  isLoading = false,
   onSearchChange,
   onAddItem,
 }: ReferenceItemsListProps) {
+  const filteredItems = refItems.filter((i) =>
+    i.task.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <>
       <input
@@ -26,11 +32,18 @@ export default function ReferenceItemsList({
       />
 
       <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar pb-24">
-        {refItems
-          .filter((i) =>
-            i.task.toLowerCase().includes(searchTerm.toLowerCase())
-          )
-          .map((item) => {
+        {isLoading && (
+          <div className="sticky top-0 z-10 mb-2 rounded-xl border border-white/10 bg-dark-900/90 backdrop-blur-sm px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+            Actualizando precios...
+          </div>
+        )}
+
+        {filteredItems.length === 0 ? (
+          <div className="py-8 text-center text-[10px] font-bold uppercase tracking-widest text-gray-500">
+            No se encontraron resultados
+          </div>
+        ) : (
+          filteredItems.map((item) => {
             const qty =
               selectedItems.find((si) => si.id === item.id)?.qty || 0;
 
@@ -61,7 +74,8 @@ export default function ReferenceItemsList({
                 </p>
               </button>
             );
-          })}
+            })
+      )}
       </div>
     </>
   );
