@@ -1,6 +1,7 @@
 interface BudgetActionsPanelProps {
   total: number;
   isSubmitting?: boolean;
+  submitAction?: "save" | "generate" | null;
   onSaveDraft: () => void;
   onGenerate: () => void;
 }
@@ -8,6 +9,7 @@ interface BudgetActionsPanelProps {
 export default function BudgetActionsPanel({
   total,
   isSubmitting = false,
+  submitAction = null,
   onSaveDraft,
   onGenerate,
 }: BudgetActionsPanelProps) {
@@ -33,7 +35,7 @@ export default function BudgetActionsPanel({
               : "bg-white/5 border border-white/10 text-white hover:bg-white/10"
           }`}
         >
-          {isSubmitting ? "Guardando..." : "💾 Guardar"}
+          {isSubmitting && submitAction === "save" ? "Guardando..." : "💾 Guardar"}
         </button>
 
         <button
@@ -46,7 +48,7 @@ export default function BudgetActionsPanel({
               : "bg-white text-black hover:scale-[1.02] active:scale-95"
           }`}
         >
-          {isSubmitting ? "Generando..." : "🚀 Generar"}
+          {isSubmitting && submitAction === "generate" ? "Generando..." : "🚀 Generar"}
         </button>
       </div>
     </>

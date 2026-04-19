@@ -4,6 +4,7 @@ interface ReferenceItemsListProps {
   searchTerm: string;
   refItems: RefItem[];
   selectedItems: SelectedItem[];
+  isLoading?: boolean;
   onSearchChange: (value: string) => void;
   onAddItem: (item: RefItem) => void;
 }
@@ -12,6 +13,7 @@ export default function ReferenceItemsList({
   searchTerm,
   refItems,
   selectedItems,
+  isLoading = false,
   onSearchChange,
   onAddItem,
 }: ReferenceItemsListProps) {
@@ -26,6 +28,12 @@ export default function ReferenceItemsList({
       />
 
       <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar pb-24">
+        {isLoading && (
+          <div className="sticky top-0 z-10 mb-2 rounded-xl border border-white/10 bg-dark-900/90 backdrop-blur-sm px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+            Actualizando precios...
+          </div>
+        )}
+
         {refItems
           .filter((i) =>
             i.task.toLowerCase().includes(searchTerm.toLowerCase())

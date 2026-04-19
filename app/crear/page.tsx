@@ -56,6 +56,8 @@ function CreateQuoteContent() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
 
+  const [isPricesLoading, setIsPricesLoading] = useState(false);
+
   const [digitalBasePrice, setDigitalBasePrice] = useState(0);
   const [digitalServices, setDigitalServices] = useState<DigitalService[]>([]);
 
@@ -66,6 +68,7 @@ function CreateQuoteContent() {
 
   const [currentUserData, setCurrentUserData] = useState<Awaited<ReturnType<typeof getUserById>>>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitAction, setSubmitAction] = useState<"save" | "generate" | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -167,28 +170,41 @@ function CreateQuoteContent() {
   }, [editId, duplicateId, initializing]);
 
   useEffect(() => {
+    if (initializing) return;
+
+    let isActive = true;
+
     const fetchPrices = async () => {
+      setIsPricesLoading(true);
+
       try {
-        setRefItems([]);
         const items = (await getReferencePricesByCategory(activeCategory)) as RefItem[];
 
         const convertedItems: RefItem[] = items.map((item: RefItem) => ({
-        ...item,
-        price:
-          currency === "USD"
-            ? Number((item.price / exchangeRate).toFixed(2))
-            : item.price,
-      }));
+          ...item,
+          price:
+            currency === "USD"
+              ? Number((item.price / exchangeRate).toFixed(2))
+              : item.price,
+        }));
 
-        setRefItems(convertedItems);
+        if (isActive) {
+          setRefItems(convertedItems);
+        }
       } catch (error) {
         console.error(error);
+      } finally {
+        if (isActive) {
+          setIsPricesLoading(false);
+        }
       }
     };
 
-    if (!initializing) {
-      fetchPrices();
-    }
+    fetchPrices();
+
+    return () => {
+      isActive = false;
+    };
   }, [activeCategory, initializing, currency, exchangeRate]);
 
   const addToBudget = (item: RefItem) => {
@@ -211,11 +227,13 @@ function CreateQuoteContent() {
   };
 
   const updateQty = (id: string, qty: number) => {
-    if (qty < 1) {
-      setSelectedItems(selectedItems.filter(i => i.id !== id));
-      return;
-    }
-    setSelectedItems(selectedItems.map(i => i.id === id ? { ...i, qty } : i));
+    const safeQty = Math.max(0, qty);
+
+    setSelectedItems((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, qty: safeQty } : item
+      )
+    );
   };
 
   const updateCustomPrice = (id: string, price: number) => {
@@ -240,7 +258,7 @@ function CreateQuoteContent() {
   const saveToFirebase = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!user || isSubmitting) return;
+    if (!user || isSubmitting || !submitAction) return;
 
     setIsSubmitting(true);
 
@@ -296,6 +314,7 @@ function CreateQuoteContent() {
       console.error(error);
     } finally {
       setIsSubmitting(false);
+      setSubmitAction(null);
     }
   };
 
@@ -341,6 +360,7 @@ function CreateQuoteContent() {
                 searchTerm={searchTerm}
                 refItems={refItems}
                 selectedItems={selectedItems}
+                isLoading={isPricesLoading}
                 onSearchChange={setSearchTerm}
                 onAddItem={addToBudget}
               />
@@ -378,14 +398,23 @@ function CreateQuoteContent() {
                 onCountryCodeChange={setCountryCode}
                 onQtyChange={updateQty}
                 onCustomPriceChange={updateCustomPrice}
-                onRemoveItem={(id) => updateQty(id, 0)}
+                onRemoveItem={(id) =>
+                  setSelectedItems((prev) => prev.filter((item) => item.id !== id))
+                }
               >
-                <BudgetActionsPanel
-                  total={total}
-                  isSubmitting={isSubmitting}
-                  onSaveDraft={() => setRedirectTarget("dashboard")}
-                  onGenerate={() => setRedirectTarget("view")}
-                />
+              <BudgetActionsPanel
+                total={total}
+                isSubmitting={isSubmitting}
+                submitAction={submitAction}
+                onSaveDraft={() => {
+                  setRedirectTarget("dashboard");
+                  setSubmitAction("save");
+                }}
+                onGenerate={() => {
+                  setRedirectTarget("view");
+                  setSubmitAction("generate");
+                }}
+              />
               </SelectedItemsTicket>
             </form>
           </div>
