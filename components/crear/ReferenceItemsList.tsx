@@ -17,6 +17,10 @@ export default function ReferenceItemsList({
   onSearchChange,
   onAddItem,
 }: ReferenceItemsListProps) {
+  const filteredItems = refItems.filter((i) =>
+    i.task.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <>
       <input
@@ -34,11 +38,12 @@ export default function ReferenceItemsList({
           </div>
         )}
 
-        {refItems
-          .filter((i) =>
-            i.task.toLowerCase().includes(searchTerm.toLowerCase())
-          )
-          .map((item) => {
+        {filteredItems.length === 0 ? (
+          <div className="py-8 text-center text-[10px] font-bold uppercase tracking-widest text-gray-500">
+            No se encontraron resultados
+          </div>
+        ) : (
+          filteredItems.map((item) => {
             const qty =
               selectedItems.find((si) => si.id === item.id)?.qty || 0;
 
@@ -69,7 +74,8 @@ export default function ReferenceItemsList({
                 </p>
               </button>
             );
-          })}
+            })
+      )}
       </div>
     </>
   );

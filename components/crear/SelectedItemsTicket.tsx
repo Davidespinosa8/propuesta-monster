@@ -82,47 +82,72 @@ export default function SelectedItemsTicket({
       </div>
 
       <div className="max-h-60 overflow-y-auto space-y-2 mb-6 pr-2 custom-scrollbar">
-        {selectedItems.map((item) => (
-          <div
-            key={item.id}
-            className="bg-dark-900 p-3 rounded-xl border border-white/5 flex justify-between items-center group"
-          >
-            <div className="flex-1">
-              <p className="text-xs font-bold text-white uppercase">{item.task}</p>
-              <div className="flex items-center gap-2 mt-1">
-                <input
-                  type="number"
-                  value={item.qty}
-                  onChange={(e) => onQtyChange(item.id, Number(e.target.value))}
-                  className="w-12 bg-dark-800 text-center text-white rounded p-1 text-xs font-mono"
-                />
-                <span className="text-gray-600 text-[10px]">x</span>
+        {selectedItems.map((item) => {
+          const isInactive = (item.qty ?? 0) === 0;
 
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] text-gray-500 font-bold">
-                    {currency === "USD" ? "USD $" : "$"}
-                  </span>
+          return (
+            <div
+              key={item.id}
+              className={`p-3 rounded-xl border flex justify-between items-center group transition-all ${
+                isInactive
+                  ? "bg-dark-900/40 border-white/5 opacity-60"
+                  : "bg-dark-900 border-white/5"
+              }`}
+            >
+              <div className="flex-1">
+                <p className="text-xs font-bold text-white uppercase flex items-center gap-2">
+                  {item.task}
+                  {isInactive && (
+                    <span className="text-[9px] px-2 py-1 rounded-full border border-white/10 text-gray-400 font-black uppercase tracking-widest">
+                      sin cantidad
+                    </span>
+                  )}
+                </p>
+
+                <div className="flex items-center gap-2 mt-1">
                   <input
                     type="number"
-                    value={item.customPrice}
-                    onChange={(e) =>
-                      onCustomPriceChange(item.id, Number(e.target.value))
-                    }
-                    className="w-20 bg-dark-800 text-white rounded p-1 text-xs font-mono"
+                    value={item.qty}
+                    min={0}
+                    onChange={(e) => onQtyChange(item.id, Number(e.target.value))}
+                    className={`w-12 text-center rounded p-1 text-xs font-mono ${
+                      isInactive
+                        ? "bg-dark-800/60 text-gray-400"
+                        : "bg-dark-800 text-white"
+                    }`}
                   />
+                  <span className="text-gray-600 text-[10px]">x</span>
+
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-gray-500 font-bold">
+                      {currency === "USD" ? "USD $" : "$"}
+                    </span>
+                    <input
+                      type="number"
+                      value={item.customPrice}
+                      onChange={(e) =>
+                        onCustomPriceChange(item.id, Number(e.target.value))
+                      }
+                      className={`w-20 rounded p-1 text-xs font-mono ${
+                        isInactive
+                          ? "bg-dark-800/60 text-gray-400"
+                          : "bg-dark-800 text-white"
+                      }`}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <button
-              type="button"
-              onClick={() => onRemoveItem(item.id)}
-              className="text-gray-600 hover:text-red-500 transition-colors ml-2 text-xl"
-            >
-              ✕
-            </button>
-          </div>
-        ))}
+              <button
+                type="button"
+                onClick={() => onRemoveItem(item.id)}
+                className="text-gray-600 hover:text-red-500 transition-colors ml-2 text-xl"
+              >
+                ✕
+              </button>
+            </div>
+          );
+        })}
       </div>
 
       {children}

@@ -158,15 +158,28 @@ export default function Dashboard() {
 
   const handleCouponSubmit = async () => {
     if (!couponInput || !user) return;
-    setCouponLoading(true);
-    const result = await applyCoupon(user.uid, couponInput);
-    if (result.success) {
-        alert(result.message);
-        window.location.reload();
-    } else { alert(result.message); }
-    setCouponLoading(false);
-  };
 
+    setCouponLoading(true);
+
+    try {
+      const result = await applyCoupon(user.uid, couponInput);
+
+      if (result.success) {
+        alert(result.message);
+        setUserPlan("pro");
+        setCouponInput("");
+        setShowUpgradeModal(false);
+      } else {
+        alert(result.message);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("No se pudo aplicar el cupón.");
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+  
   if (authLoading) {
     return (
       <div className="min-h-screen bg-dark-900 flex items-center justify-center text-white italic">
