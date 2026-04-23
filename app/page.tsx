@@ -10,7 +10,7 @@ export default function Home() {
 
   return (
     // Agregamos relative y overflow-hidden al main para contener las luces que scrollean
-    <main className="relative min-h-screen bg-dark-900 text-center overflow-x-hidden overflow-y-hidden selection:bg-primary-DEFAULT selection:text-white font-sans">
+    <main className="relative min-h-screen bg-dark-900 text-center overflow-x-hidden selection:bg-primary-DEFAULT selection:text-white font-sans">
       
       {/* --- FONDO 1: GRID FIJO (No se mueve) --- */}
       <div className="fixed inset-0 z-0 pointer-events-none">
