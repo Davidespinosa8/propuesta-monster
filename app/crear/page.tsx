@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   getProposalById,
@@ -53,6 +53,7 @@ function CreateQuoteContent() {
   );
   
   const [refItems, setRefItems] = useState<RefItem[]>([]);
+  const pricesCacheRef = useRef<Record<string, RefItem[]>>({});
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
 
@@ -174,23 +175,35 @@ function CreateQuoteContent() {
 
     let isActive = true;
 
-    const fetchPrices = async () => {
+    const convertPrices = (items: RefItem[]) => {
+      return items.map((item) => ({
+        ...item,
+        price:
+          currency === "USD"
+            ? Number((item.price / exchangeRate).toFixed(2))
+            : item.price,
+      }));
+    };
+
+    const loadPrices = async () => {
       setIsPricesLoading(true);
 
       try {
-        const items = (await getReferencePricesByCategory(activeCategory)) as RefItem[];
+        const cachedItems = pricesCacheRef.current[activeCategory];
 
-        const convertedItems: RefItem[] = items.map((item: RefItem) => ({
-          ...item,
-          price:
-            currency === "USD"
-              ? Number((item.price / exchangeRate).toFixed(2))
-              : item.price,
-        }));
-
-        if (isActive) {
-          setRefItems(convertedItems);
+        if (cachedItems) {
+          setRefItems(convertPrices(cachedItems));
+          return;
         }
+
+        const items = (await getReferencePricesByCategory(
+          activeCategory
+        )) as RefItem[];
+
+        if (!isActive) return;
+
+        pricesCacheRef.current[activeCategory] = items;
+        setRefItems(convertPrices(items));
       } catch (error) {
         console.error(error);
       } finally {
@@ -200,7 +213,7 @@ function CreateQuoteContent() {
       }
     };
 
-    fetchPrices();
+    loadPrices();
 
     return () => {
       isActive = false;
@@ -208,12 +221,25 @@ function CreateQuoteContent() {
   }, [activeCategory, initializing, currency, exchangeRate]);
 
   const addToBudget = (item: RefItem) => {
-    const existing = selectedItems.find(i => i.id === item.id);
-    if (existing) {
-      updateQty(item.id, existing.qty + 1);
-    } else {
-      setSelectedItems([...selectedItems, { ...item, qty: 1, customPrice: item.price, category: activeCategory }]);
-    }
+    setSelectedItems((prev) => {
+      const existing = prev.find((i) => i.id === item.id);
+
+      if (existing) {
+        return prev.map((i) =>
+          i.id === item.id ? { ...i, qty: (i.qty ?? 0) + 1 } : i
+        );
+      }
+
+      return [
+        ...prev,
+        {
+          ...item,
+          qty: 1,
+          customPrice: item.price,
+          category: activeCategory,
+        },
+      ];
+    });
   };
 
   const addManualToBudget = () => {
@@ -222,7 +248,7 @@ function CreateQuoteContent() {
       id: `manual-${Date.now()}`, task: manualTask, unit: "Personalizado",
       price: manualPrice, qty: 1, customPrice: manualPrice, category: "manual"
     };
-    setSelectedItems([...selectedItems, newItem]);
+    setSelectedItems((prev) => [...prev, newItem]);
     setManualTask(""); setManualPrice(0); setIsAddingManual(false);
   };
 
@@ -237,10 +263,14 @@ function CreateQuoteContent() {
   };
 
   const updateCustomPrice = (id: string, price: number) => {
-    setSelectedItems(selectedItems.map(i => i.id === id ? { ...i, customPrice: price } : i));
+    setSelectedItems((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, customPrice: price } : item
+      )
+    );
   };
 
-  const calculateTotal = () => {
+  const total = useMemo(() => {
     const totalOficios = selectedItems.reduce(
       (acc, item) => acc + getLineItemTotal(item),
       0
@@ -251,9 +281,7 @@ function CreateQuoteContent() {
       digitalServices.reduce((acc, item) => acc + item.price, 0);
 
     return totalOficios + totalManual;
-  };
-
-  const total = calculateTotal();
+  }, [selectedItems, digitalBasePrice, digitalServices]);
 
   const saveToFirebase = async (e: React.FormEvent) => {
     e.preventDefault();
